@@ -5,7 +5,11 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from .models import Direccion, PerfilProveedor, PerfilUsuario, ZonaAtencion
 
-from .serializers import ZonaAtencionSerializer, PerfilProveedorSerializer, ActualizarPerfilSerializer, CerrarSesionSerializer, DireccionSerializer, InicioSesionSerializer, PerfilSerializer, RegistroSerializer
+from catalogo.models import Servicio
+from django.db.models import Prefetch
+from django.http import Http404
+
+from .serializers import ProveedorPublicoSerializer, ZonaAtencionSerializer, PerfilProveedorSerializer, ActualizarPerfilSerializer, CerrarSesionSerializer, DireccionSerializer, InicioSesionSerializer, PerfilSerializer, RegistroSerializer
 
 from catalogo.models import Servicio
 from catalogo.serializers import ServicioSerializer
@@ -186,34 +190,33 @@ class MisZonasAtencionView(generics.ListCreateAPIView):
         perfil_proveedor = self.obtener_perfil_proveedor()
         serializer.save(perfil_proveedor=perfil_proveedor)
 
-# HU-10: Consulta del perfil del proveedor y detalle del servicio
-class PerfilProveedorPublicoView(APIView):
-    permission_classes = [permissions.AllowAny]
 
-    def get(self, request, proveedor_id):
+class ProveedorDetalleView(generics.RetrieveAPIView):
+    """Perfil público del proveedor con su catálogo activo (HU-09, HU-10)."""
+    serializer_class = ProveedorPublicoSerializer
+    queryset = PerfilProveedor.objects.select_related('perfil_usuario__usuario').prefetch_related(
+        'zonas_atencion',
+        Prefetch(
+            'servicios',
+            queryset=Servicio.objects.filter(estado=Servicio.Estado.ACTIVO)
+            .select_related('categoria', 'proveedor__perfil_usuario__usuario')
+            .prefetch_related('multimedia', 'elementos'),
+        ),
+    )
+
+    def retrieve(self, request, *args, **kwargs):
         try:
-            perfil = PerfilProveedor.objects.select_related('perfil_usuario__usuario').get(pk=proveedor_id)
-        except PerfilProveedor.DoesNotExist:
+            perfil = self.get_object()
+        except Http404:
             return Response(
                 {'error': 'El proveedor solicitado no fue encontrado.'},
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        data = PerfilProveedorSerializer(perfil).data
-        usuario = perfil.perfil_usuario.usuario
-        data['nombres'] = usuario.first_name
-        data['apellidos'] = usuario.last_name
-        data['email'] = usuario.email
+        data = self.get_serializer(perfil).data
+        data['email'] = perfil.perfil_usuario.usuario.email
         data['telefono'] = perfil.perfil_usuario.telefono
-
-        zonas = perfil.zonas_atencion.all()
-        data['zonas_atencion'] = ZonaAtencionSerializer(zonas, many=True).data
-        data['tiene_zonas_registradas'] = zonas.exists()
-
-        if not zonas.exists():
+        data['tiene_zonas_registradas'] = bool(data['zonas_atencion'])
+        if not data['zonas_atencion']:
             data['mensaje_zonas'] = 'El proveedor no tiene zonas generales de atención registradas.'
-
-        servicios = Servicio.objects.filter(proveedor=perfil, estado=Servicio.Estado.ACTIVO)
-        data['catalogo_servicios'] = ServicioSerializer(servicios, many=True).data
-
-        return Response(data, status=status.HTTP_200_OK)
+        return Response(data)

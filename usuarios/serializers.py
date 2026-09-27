@@ -6,6 +6,8 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from catalogo.serializers import ServicioSerializer
+
 from .models import Direccion, PerfilProveedor, PerfilUsuario, ZonaAtencion
 
 
@@ -148,3 +150,21 @@ class ZonaAtencionSerializer(serializers.ModelSerializer):
         model = ZonaAtencion
         fields = ('id', 'ciudad', 'barrio_sector')
         read_only_fields = ('id',)
+
+
+class ProveedorPublicoSerializer(serializers.ModelSerializer):
+    nombres = serializers.CharField(source='perfil_usuario.usuario.first_name', read_only=True)
+    apellidos = serializers.CharField(source='perfil_usuario.usuario.last_name', read_only=True)
+    zonas_atencion = ZonaAtencionSerializer(many=True, read_only=True)
+    servicios = ServicioSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = PerfilProveedor
+        fields = (
+            'id',
+            'nombres',
+            'apellidos',
+            'descripcion_profesional',
+            'zonas_atencion',
+            'servicios',
+        )

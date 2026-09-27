@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import MiPerfilProveedorView, MisZonasAtencionView, PerfilProveedorPublicoView
+from .views import MiPerfilProveedorView, MisZonasAtencionView, ProveedorDetalleView
 
 
 urlpatterns = [
@@ -14,10 +14,6 @@ urlpatterns = [
         MisZonasAtencionView.as_view(),
         name='mis-zonas-atencion',
     ),
-    # HU-10: Ruta pública para consultar perfil y catálogo
-    path(
-        '<int:proveedor_id>/',
-        PerfilProveedorPublicoView.as_view(),
-        name='perfil-proveedor-publico',
-    ),
+    # HU-09 / HU-10: perfil público del proveedor con su catálogo activo
+    path('<int:pk>/', ProveedorDetalleView.as_view(), name='detalle-proveedor'),
 ]
