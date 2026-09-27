@@ -1,15 +1,18 @@
 from django.db.models import Q
+from django.http import Http404
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters, viewsets, permissions
+from rest_framework import filters, generics, viewsets, permissions, status
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.response import Response
 from .models import Categoria, Servicio, ContenidoMultimediaServicio, ElementoServicio
 from .serializers import (
     CategoriaSerializer,
     ServicioSerializer,
+    ServicioUpdateSerializer,
     ContenidoMultimediaServicioSerializer,
     ElementoServicioSerializer,
 )
-from .permissions import IsProveedorOwnerOrReadOnly, es_dueno_servicio
+from .permissions import IsProveedorOwnerOrReadOnly, IsProviderOwner, es_dueno_servicio
 
 
 def filtrar_visibles(queryset, user, prefijo=''):
@@ -18,6 +21,17 @@ def filtrar_visibles(queryset, user, prefijo=''):
         Q(**{f'{prefijo}estado': Servicio.Estado.ACTIVO})
         | Q(**{f'{prefijo}proveedor__perfil_usuario__usuario': user})
     )
+
+
+class ServicioGestionView(generics.RetrieveUpdateAPIView):
+    serializer_class = ServicioUpdateSerializer
+    # CA6: IsAuthenticated deniega acceso a usuarios sin sesión
+    # CA5: IsProviderOwner deniega operaciones sobre servicios ajenos
+    permission_classes = [permissions.IsAuthenticated, IsProviderOwner]
+
+    def get_queryset(self):
+        """CA1 y CA5: solo servicios del proveedor autenticado."""
+        return Servicio.objects.filter(proveedor__perfil_usuario__usuario=self.request.user)
 
 class CategoriaViewSet(viewsets.ModelViewSet):
     queryset = Categoria.objects.all()
@@ -54,6 +68,17 @@ class ServicioViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Primero debes registrar tu perfil profesional de proveedor.")
 
         serializer.save(proveedor=user.perfil.perfil_profesional)
+
+    # HU-10: Detalle de servicio
+    def retrieve(self, request, *args, **kwargs):
+        try:
+            instance = self.get_object()
+        except Http404:
+            return Response(
+                {"error": "El servicio solicitado no fue encontrado."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        return Response(self.get_serializer(instance).data)
 
 
 class DetalleServicioViewSet(viewsets.ModelViewSet):

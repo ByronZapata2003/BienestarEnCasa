@@ -27,9 +27,6 @@ urlpatterns = [
     path('api/proveedores/', include('usuarios.proveedores_urls')),
     path('api/catalogo/', include('catalogo.urls')),
     path('api/solicitudes/', include('solicitudes.urls')),
-<<<<<<< HEAD
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-=======
     path('recuperar-password/', 
          auth_views.PasswordResetView.as_view(
              template_name='users/password_reset.html',
@@ -52,5 +49,4 @@ urlpatterns = [
              template_name='users/password_reset_complete.html'
          ), 
          name='password_reset_complete'),
-]
->>>>>>> 586acf97ad50ca87a950bac9b8b107f8a9d574e7
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

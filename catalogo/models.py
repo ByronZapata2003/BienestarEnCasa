@@ -47,6 +47,21 @@ class Servicio(models.Model):
         return f"{self.nombre} - {self.proveedor.perfil_usuario.usuario.email}"
 
 
+class Solicitud(models.Model):
+    servicio = models.ForeignKey(Servicio, on_delete=models.DO_NOTHING)
+    # Estos campos deben existir para congelar los valores al momento de crear la solicitud
+    precio_historico = models.DecimalField(max_digits=10, decimal_places=2)
+    nombre_historico = models.CharField(max_length=255)
+    duracion_historica = models.IntegerField()
+
+    def save(self, *args, **kwargs):
+        if not self.pk: # Solo en la creación
+            self.precio_historico = self.servicio.precio
+            self.nombre_historico = self.servicio.nombre
+            self.duracion_historica = self.servicio.duracion_minutos
+        super().save(*args, **kwargs)
+
+
 class ContenidoMultimediaServicio(models.Model):
     class Tipo(models.TextChoices):
         FOTO = 'FOTO', 'Foto'

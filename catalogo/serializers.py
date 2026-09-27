@@ -2,6 +2,13 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 from .models import Categoria, Servicio, ContenidoMultimediaServicio, ElementoServicio
 
+class ServicioUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Servicio
+        # Incluye los campos que el proveedor tiene permitido modificar, incluyendo el estado
+        fields = ['id', 'nombre', 'descripcion', 'precio', 'duracion_minutos', 'estado']
+        read_only_fields = ['id'] # Protege el ID de modificaciones
+
 class CategoriaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Categoria

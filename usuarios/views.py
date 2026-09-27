@@ -7,9 +7,12 @@ from .models import Direccion, PerfilProveedor, PerfilUsuario, ZonaAtencion
 
 from catalogo.models import Servicio
 from django.db.models import Prefetch
+from django.http import Http404
 
 from .serializers import ProveedorPublicoSerializer, ZonaAtencionSerializer, PerfilProveedorSerializer, ActualizarPerfilSerializer, CerrarSesionSerializer, DireccionSerializer, InicioSesionSerializer, PerfilSerializer, RegistroSerializer
 
+from catalogo.models import Servicio
+from catalogo.serializers import ServicioSerializer
 
 class RegistroView(generics.CreateAPIView):
     permission_classes = (permissions.AllowAny,)
@@ -189,7 +192,7 @@ class MisZonasAtencionView(generics.ListCreateAPIView):
 
 
 class ProveedorDetalleView(generics.RetrieveAPIView):
-    """Perfil público del proveedor con su catálogo activo (HU-09)."""
+    """Perfil público del proveedor con su catálogo activo (HU-09, HU-10)."""
     serializer_class = ProveedorPublicoSerializer
     queryset = PerfilProveedor.objects.select_related('perfil_usuario__usuario').prefetch_related(
         'zonas_atencion',
@@ -200,3 +203,20 @@ class ProveedorDetalleView(generics.RetrieveAPIView):
             .prefetch_related('multimedia', 'elementos'),
         ),
     )
+
+    def retrieve(self, request, *args, **kwargs):
+        try:
+            perfil = self.get_object()
+        except Http404:
+            return Response(
+                {'error': 'El proveedor solicitado no fue encontrado.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        data = self.get_serializer(perfil).data
+        data['email'] = perfil.perfil_usuario.usuario.email
+        data['telefono'] = perfil.perfil_usuario.telefono
+        data['tiene_zonas_registradas'] = bool(data['zonas_atencion'])
+        if not data['zonas_atencion']:
+            data['mensaje_zonas'] = 'El proveedor no tiene zonas generales de atención registradas.'
+        return Response(data)

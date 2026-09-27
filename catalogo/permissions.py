@@ -1,5 +1,15 @@
 from rest_framework import permissions
 from usuarios.models import PerfilUsuario
+from rest_framework import permissions
+
+class IsProviderOwner(permissions.BasePermission):
+    """
+    Permite el acceso solo al proveedor dueño del servicio.
+    Asume que la instancia del servicio tiene un campo 'proveedor' vinculado al usuario.
+    """
+    def has_object_permission(self, request, view, obj):
+        # Asegura que el usuario autenticado sea el dueño del servicio
+        return obj.proveedor.perfil_usuario.usuario == request.user
 
 class IsProveedor(permissions.BasePermission):
     """
