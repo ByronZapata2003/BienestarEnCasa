@@ -62,3 +62,15 @@ class ServicioViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_200_OK
             )
         return response
+# HU-10: Detalle de servicio
+    def retrieve(self, request, *args, **kwargs):
+        try:
+            instance = self.get_object()
+        except Exception:
+            return Response(
+                {"error": "El servicio solicitado no fue encontrado."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data, status=status.HTTP_200_OK)
