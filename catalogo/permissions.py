@@ -23,11 +23,7 @@ class IsProveedor(permissions.BasePermission):
 
 
 class IsProveedorOwnerOrReadOnly(permissions.BasePermission):
-    """
-    Permite lectura a cualquier usuario autenticado, pero solo permite
-    modificaciones al proveedor dueño del servicio. Aplica a Servicio y
-    a los objetos que cuelgan de él (multimedia, elementos).
-    """
+    
     message = 'Solo los proveedores pueden modificar el catálogo de servicios.'
 
     def has_permission(self, request, view):
