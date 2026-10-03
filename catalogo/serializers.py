@@ -3,6 +3,7 @@ from rest_framework import serializers
 from .models import Categoria, Servicio, ContenidoMultimediaServicio, ElementoServicio
 
 class ServicioUpdateSerializer(serializers.ModelSerializer):
+    #lo actualiza el proveedor despues de valida y aqui solo verifica que coincida antes de enviar al modelo
     class Meta:
         model = Servicio
         # Incluye los campos que el proveedor tiene permitido modificar, incluyendo el estado
@@ -10,18 +11,21 @@ class ServicioUpdateSerializer(serializers.ModelSerializer):
         read_only_fields = ['id'] # Protege el ID de modificaciones
 
 class CategoriaSerializer(serializers.ModelSerializer):
+    #para crear la categoria
     class Meta:
         model = Categoria
         fields = ['id', 'nombre', 'descripcion']
 
 
 class ElementoServicioSerializer(serializers.ModelSerializer):
+    #para crear
     class Meta:
         model = ElementoServicio
         fields = ['id', 'servicio', 'tipo', 'nombre', 'especificaciones']
 
 
 class ContenidoMultimediaServicioSerializer(serializers.ModelSerializer):
+    #para crear  pero de acuerdo al nombre al que pertenece al proveedor deño
     class Meta:
         model = ContenidoMultimediaServicio
         fields = ['id', 'servicio', 'tipo', 'archivo', 'descripcion']
@@ -40,6 +44,7 @@ class ContenidoMultimediaServicioSerializer(serializers.ModelSerializer):
 
 
 class ServicioSerializer(serializers.ModelSerializer):
+    #aqui asocia todo lo que le pertenece al coso
     elementos = ElementoServicioSerializer(many=True, read_only=True)
     multimedia = ContenidoMultimediaServicioSerializer(many=True, read_only=True)
     categoria_detalle = CategoriaSerializer(source='categoria', read_only=True)
