@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="BienestarEnCasa - Servicios de bienestar integral en el hogar">
+    <title>{% block title %}BienestarEnCasa{% endblock %}</title>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="body-content">
+    <!-- Header -->
+    <header class="site-header">
+        <div class="container header-container">
+            <a href="{% url 'pagina-inicio' %}" class="brand" aria-label="BienestarEnCasa - Inicio">
+                BienestarEnCasa
+            </a>
+            <!--
+                Navegación: los elementos con data-solo se muestran/ocultan por JS según la sesión.
+                invitado = sin sesión | CLIENTE | PROVEEDOR | usuario = cualquier sesión iniciada
+            -->
+            <nav class="main-nav" aria-label="Navegación principal">
+                <ul class="nav-list">
+                    <li data-solo="invitado"><a href="{% url 'pagina-login' %}" class="nav-link">Iniciar Sesión</a></li>
+                    <li data-solo="invitado"><a href="{% url 'pagina-registro' %}" class="nav-link">Registrarse</a></li>
+
+                    <li data-solo="usuario" hidden><a href="{% url 'pagina-catalogo' %}" class="nav-link">Catálogo</a></li>
+
+                    <li data-solo="CLIENTE" hidden><a href="{% url 'pagina-mis-solicitudes' %}" class="nav-link">Mis Solicitudes</a></li>
+                    <li data-solo="CLIENTE" hidden><a href="{% url 'pagina-direcciones' %}" class="nav-link">Mis Direcciones</a></li>
+
+                    <li data-solo="PROVEEDOR" hidden><a href="{% url 'pagina-panel-proveedor' %}" class="nav-link">Panel Proveedor</a></li>
+                    <li data-solo="PROVEEDOR" hidden><a href="{% url 'pagina-mis-servicios' %}" class="nav-link">Mis Servicios</a></li>
+                    <li data-solo="PROVEEDOR" hidden><a href="{% url 'pagina-zonas' %}" class="nav-link">Zonas de Atención</a></li>
+
+                    <li data-solo="usuario" hidden><a href="{% url 'pagina-perfil' %}" class="nav-link">Mi Perfil</a></li>
+                    <li data-solo="usuario" hidden><button type="button" id="btn-cerrar-sesion" class="nav-link">Cerrar Sesión</button></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Contenido Principal -->
+    <main class="main-content">
+        {% block body %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+        <div class="container footer-container">
+            <p>&copy; {% now "Y" %} BienestarEnCasa. Todos los derechos reservados.</p>
+            <ul class="footer-links">
+                <li><a href="#">Política de Privacidad</a></li>
+                <li><a href="#">Términos y Condiciones</a></li>
+                <li><a href="#">Contacto</a></li>
+            </ul>
+        </div>
+    </footer>
+
+    <!--
+        ============================================================
+        Cliente JS compartido (window.BEC)
+        La API usa JWT: el token se guarda en localStorage y se envía
+        en la cabecera Authorization. Todas las páginas usan estas
+        funciones, así no se repite lógica de autenticación.
+        ============================================================
+    -->
+    <script>
+    (function () {
+        'use strict';
+
+        // ---------- Rutas (generadas por Django para no escribirlas a mano) ----------
+        var CFG = {
+            api: {
+                registro: "{% url 'registro' %}",
+                iniciarSesion: "{% url 'iniciar-sesion' %}",
+                renovar: "{% url 'renovar-token' %}",
+                cerrarSesion: "{% url 'cerrar-sesion' %}",
+                miPerfil: "{% url 'mi-perfil' %}",
+                direcciones: "{% url 'direcciones' %}",
+                direccion: "{% url 'detalle-direccion' 0 %}",
+                perfilProveedor: "{% url 'mi-perfil-proveedor' %}",
+                zonas: "{% url 'mis-zonas-atencion' %}",
+                categorias: "{% url 'categoria-list' %}",
+                servicios: "{% url 'servicio-list' %}",
+                servicio: "{% url 'servicio-detail' 0 %}",
+                solicitudes: "{% url 'mis-solicitudes-list' %}",
+                solicitud: "{% url 'mis-solicitudes-detail' 0 %}"
+            },
+            pages: {
+                inicio: "{% url 'pagina-inicio' %}",
+                login: "{% url 'pagina-login' %}",
+                registro: "{% url 'pagina-registro' %}",
+                perfil: "{% url 'pagina-perfil' %}",
+                direcciones: "{% url 'pagina-direcciones' %}",
+                perfilProveedor: "{% url 'pagina-perfil-proveedor' %}",
+                panelProveedor: "{% url 'pagina-panel-proveedor' %}",
+                zonas: "{% url 'pagina-zonas' %}",
+                catalogo: "{% url 'pagina-catalogo' %}",
+                servicio: "{% url 'pagina-servicio' 0 %}",
+                misServicios: "{% url 'pagina-mis-servicios' %}",
+                servicioNuevo: "{% url 'pagina-servicio-nuevo' %}",
+                servicioEditar: "{% url 'pagina-servicio-editar' 0 %}",
+                solicitudCrear: "{% url 'pagina-solicitud-crear' 0 %}",
+                misSolicitudes: "{% url 'pagina-mis-solicitudes' %}",
+                solicitudDetalle: "{% url 'pagina-solicitud-detalle' 0 %}"
+            }
+        };
+
+        var K = { access: 'bec_access', refresh: 'bec_refresh', perfil: 'bec_perfil', flash: 'bec_flash' };
+
+        // ---------- Almacenamiento (con try/catch por si el navegador lo bloquea) ----------
+        function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+        function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* sin almacenamiento */ } }
+        function lsDel(k) { try { localStorage.removeItem(k); } catch (e) { /* nada */ } }
+        function clearSession() { lsDel(K.access); lsDel(K.refresh); lsDel(K.perfil); }
+
+        // Reemplaza el "0" de una ruta plantilla por un id real: /algo/0/ -> /algo/5/
+        function url(tpl, id) { return tpl.replace('/0/', '/' + encodeURIComponent(id) + '/'); }
+
+        function param(nombre) { return new URLSearchParams(window.location.search).get(nombre); }
+
+        // ---------- Crear elementos DOM de forma segura (sin innerHTML con datos) ----------
+        function h(tag, props) {
+            var el = document.createElement(tag);
+            if (props) {
+                Object.keys(props).forEach(function (k) {
+                    var v = props[k];
+                    if (v === false || v === null || v === undefined) { return; }
+                    if (k === 'text') { el.textContent = v; }
+                    else if (k === 'class') { el.className = v; }
+                    else if (k.slice(0, 2) === 'on') { el.addEventListener(k.slice(2), v); }
+                    else if (v === true) { el.setAttribute(k, ''); }
+                    else { el.setAttribute(k, v); }
+                });
+            }
+            for (var i = 2; i < arguments.length; i++) { addChild(el, arguments[i]); }
+            return el;
+        }
+        function addChild(el, c) {
+            if (c === null || c === undefined || c === false) { return; }
+            if (Array.isArray(c)) { c.forEach(function (x) { addChild(el, x); }); return; }
+            el.appendChild(typeof c === 'object' ? c : document.createTextNode(String(c)));
+        }
+        function clear(el) { while (el.firstChild) { el.removeChild(el.firstChild); } }
+
+        // ---------- Mensajes ----------
+        var ETIQUETAS = {
+            nombres: 'Nombres', apellidos: 'Apellidos', email: 'Correo', password: 'Contraseña',
+            password_confirmacion: 'Confirmación de contraseña', rol: 'Rol', telefono: 'Teléfono',
+            direccion: 'Dirección', ciudad: 'Ciudad', barrio_sector: 'Barrio/Sector',
+            informacion_complementaria: 'Información complementaria', es_principal: 'Dirección principal',
+            descripcion_profesional: 'Descripción profesional', categoria: 'Categoría', nombre: 'Nombre',
+            descripcion: 'Descripción', duracion_minutos: 'Duración (minutos)', precio: 'Precio', estado: 'Estado',
+            fecha_solicitada: 'Fecha', hora_solicitada: 'Hora', direccion_atencion: 'Dirección de atención',
+            observaciones: 'Observaciones', servicio: 'Servicio', proveedor: 'Proveedor'
+        };
+        // Convierte cualquier respuesta de error de DRF en una lista de textos legibles
+        function errores(d) {
+            if (d === null || d === undefined) { return []; }
+            if (typeof d === 'string') { return [d]; }
+            if (Array.isArray(d)) { return d.reduce(function (a, x) { return a.concat(errores(x)); }, []); }
+            if (typeof d === 'object') {
+                var out = [];
+                Object.keys(d).forEach(function (k) {
+                    var pref = (k === 'detail' || k === 'non_field_errors') ? '' : (ETIQUETAS[k] || k) + ': ';
+                    errores(d[k]).forEach(function (m) { out.push(pref + m); });
+                });
+                return out;
+            }
+            return [String(d)];
+        }
+        // Muestra un mensaje (texto o lista) dentro de #mensajes (o el contenedor indicado)
+        function mensaje(textos, tipo, contenedor) {
+            var box = contenedor || document.getElementById('mensajes');
+            if (!box) { return; }
+            clear(box);
+            var lista = Array.isArray(textos) ? textos : [textos];
+            if (!lista.length) { return; }
+            var rol = tipo === 'error' ? 'alert' : 'status';
+            box.appendChild(h('ul', { class: 'mensaje mensaje-' + (tipo || 'info'), role: rol },
+                lista.map(function (t) { return h('li', { text: t }); })));
+            if (tipo === 'error') { box.scrollIntoView({ block: 'nearest' }); }
+        }
+        function mensajeError(res, contenedor) {
+            var l = errores(res && res.data);
+            if (!l.length) { l = ['Ocurrió un error inesperado (código ' + (res ? res.status : '?') + ').']; }
+            mensaje(l, 'error', contenedor);
+        }
+        // "Flash": mensaje que sobrevive a una redirección y se muestra en la página siguiente
+        function flash(texto) { try { sessionStorage.setItem(K.flash, texto); } catch (e) { /* nada */ } }
+        function mostrarFlash() {
+            var t = null;
+            try { t = sessionStorage.getItem(K.flash); sessionStorage.removeItem(K.flash); } catch (e) { /* nada */ }
+            if (t) { mensaje(t, 'exito'); }
+        }
+
+        // ---------- Peticiones a la API ----------
+        var refrescando = null;
+        function renovarToken() {
+            var r = lsGet(K.refresh);
+            if (!r) { return Promise.resolve(false); }
+            if (!refrescando) {
+                refrescando = fetch(CFG.api.renovar, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ refresh: r })
+                }).then(function (res) { return res.ok ? res.json() : null; })
+                  .then(function (d) {
+                      if (d && d.access) {
+                          lsSet(K.access, d.access);
+                          if (d.refresh) { lsSet(K.refresh, d.refresh); }
+                          return true;
+                      }
+                      return false;
+                  })
+                  .catch(function () { return false; })
+                  .then(function (ok) { refrescando = null; return ok; });
+            }
+            return refrescando;
+        }
+
+        function irALogin() {
+            var next = window.location.pathname + window.location.search;
+            window.location.replace(CFG.pages.login + '?next=' + encodeURIComponent(next));
+        }
+        function sesionExpirada() {
+            clearSession();
+            if (window.location.pathname !== CFG.pages.login) { irALogin(); }
+        }
+
+        /*
+          request(url, {method, body, auth})
+          Devuelve siempre una promesa que resuelve {ok, status, data}.
+          Si el token venció intenta renovarlo una vez; si no puede, manda al login.
+        */
+        function request(u, opts) {
+            opts = opts || {};
+            var conAuth = opts.auth !== false;
+            function enviar() {
+                var headers = { 'Accept': 'application/json' };
+                if (opts.body !== undefined) { headers['Content-Type'] = 'application/json'; }
+                if (conAuth && lsGet(K.access)) { headers['Authorization'] = 'Bearer ' + lsGet(K.access); }
+                return fetch(u, {
+                    method: opts.method || 'GET',
+                    headers: headers,
+                    body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
+                });
+            }
+            return enviar().then(function (res) {
+                if (res.status === 401 && conAuth) {
+                    return renovarToken().then(function (ok) {
+                        if (!ok) { sesionExpirada(); return res; }
+                        return enviar();
+                    });
+                }
+                return res;
+            }).then(function (res) {
+                if (res.status === 204) { return { ok: true, status: 204, data: null }; }
+                return res.json().catch(function () { return null; }).then(function (data) {
+                    return { ok: res.ok, status: res.status, data: data };
+                });
+            }, function () {
+                return { ok: false, status: 0, data: { detail: 'No fue posible conectar con el servidor.' } };
+            });
+        }
+
+        // ---------- Sesión ----------
+        function perfilCache() {
+            try { return JSON.parse(lsGet(K.perfil) || 'null'); } catch (e) { return null; }
+        }
+        function cargarPerfil(forzar) {
+            var c = perfilCache();
+            if (c && !forzar) { return Promise.resolve(c); }
+            return request(CFG.api.miPerfil).then(function (res) {
+                if (res.ok) { lsSet(K.perfil, JSON.stringify(res.data)); return res.data; }
+                return null;
+            });
+        }
+        function inicioPorRol(rol) {
+            return rol === 'PROVEEDOR' ? CFG.pages.panelProveedor : CFG.pages.catalogo;
+        }
+        /*
+          requiereSesion(['CLIENTE'])  -> promesa con el perfil, o null si redirigió.
+          Sin parámetro basta con tener sesión (cualquier rol).
+        */
+        function requiereSesion(roles) {
+            if (!lsGet(K.access)) { irALogin(); return Promise.resolve(null); }
+            return cargarPerfil(false).then(function (p) {
+                if (!p) { return null; }
+                if (roles && roles.indexOf(p.rol) === -1) {
+                    window.location.replace(inicioPorRol(p.rol));
+                    return null;
+                }
+                return p;
+            });
+        }
+        function cerrarSesion() {
+            var r = lsGet(K.refresh);
+            function fin() { clearSession(); window.location.replace(CFG.pages.login); }
+            if (!r) { fin(); return; }
+            request(CFG.api.cerrarSesion, { method: 'POST', body: { refresh: r } }).then(fin, fin);
+        }
+
+        // ---------- Navegación según sesión ----------
+        function pintarNav() {
+            var p = lsGet(K.access) ? perfilCache() : null;
+            var items = document.querySelectorAll('[data-solo]');
+            for (var i = 0; i < items.length; i++) {
+                var d = items[i].getAttribute('data-solo');
+                var ver = (d === 'invitado') ? !p : (d === 'usuario') ? !!p : (!!p && p.rol === d);
+                if (ver) { items[i].removeAttribute('hidden'); } else { items[i].setAttribute('hidden', ''); }
+            }
+        }
+
+        // ---------- Formato ----------
+        function dinero(v) {
+            var n = Number(v);
+            return '$' + (isNaN(n) ? v : n.toLocaleString('es-CO', { maximumFractionDigits: 2 }));
+        }
+        function fecha(iso) { // 'YYYY-MM-DD' -> 'DD/MM/YYYY' (sin pasar por Date para evitar desfases de zona horaria)
+            if (!iso) { return ''; }
+            var p = String(iso).split('-');
+            return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : iso;
+        }
+        function hora(t) { return t ? String(t).slice(0, 5) : ''; }
+        function fechaHora(iso) {
+            if (!iso) { return ''; }
+            var d = new Date(iso);
+            return isNaN(d) ? iso : d.toLocaleString('es-CO');
+        }
+        function lista(data) { // la API a veces responde {mensaje, resultados: []} en vez de una lista
+            if (Array.isArray(data)) { return data; }
+            if (data && Array.isArray(data.resultados)) { return data.resultados; }
+            return [];
+        }
+        var ESTADOS_SOLICITUD = { PENDIENTE: 'Pendiente', SUGERIDA: 'Sugerida', ACEPTADA: 'Aceptada', COMPLETADA: 'Completada', CANCELADA: 'Cancelada' };
+        var ESTADOS_SERVICIO = { ACTIVO: 'Activo', INACTIVO: 'Inactivo' };
+
+        // Bloquea/desbloquea el botón de envío mientras se espera respuesta
+        function ocupado(form, si) {
+            var b = form.querySelector('button[type="submit"]');
+            if (b) { b.disabled = !!si; }
+        }
+
+        window.BEC = {
+            cfg: CFG, api: request, url: url, param: param, h: h, clear: clear,
+            mensaje: mensaje, mensajeError: mensajeError, errores: errores, flash: flash,
+            requiereSesion: requiereSesion, cargarPerfil: cargarPerfil, perfilCache: perfilCache,
+            inicioPorRol: inicioPorRol, cerrarSesion: cerrarSesion, pintarNav: pintarNav,
+            guardarSesion: function (tokens) { lsSet(K.access, tokens.access); lsSet(K.refresh, tokens.refresh); },
+            haySesion: function () { return !!lsGet(K.access); },
+            dinero: dinero, fecha: fecha, hora: hora, fechaHora: fechaHora, lista: lista,
+            ESTADOS_SOLICITUD: ESTADOS_SOLICITUD, ESTADOS_SERVICIO: ESTADOS_SERVICIO, ocupado: ocupado
+        };
+
+        document.addEventListener('DOMContentLoaded', function () {
+            pintarNav();
+            mostrarFlash();
+            var b = document.getElementById('btn-cerrar-sesion');
+            if (b) { b.addEventListener('click', cerrarSesion); }
+        });
+    })();
+    </script>
+
+    {% block extra_body %}{% endblock %}
+</body>
+</html>

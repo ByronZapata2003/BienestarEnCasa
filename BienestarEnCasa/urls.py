@@ -47,4 +47,7 @@ urlpatterns = [
              template_name='users/password_reset_complete.html'
          ), 
          name='password_reset_complete'),
+
+    # Páginas HTML del frontend (se deja al final para no interferir con las rutas anteriores)
+    path('', include('BienestarEnCasa.paginas_urls')),
 ]

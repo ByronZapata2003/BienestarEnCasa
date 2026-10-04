@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}Catálogo de Servicios - BienestarEnCasa{% endblock %}
+
+{% block body %}
+<div class="container">
+    <h1>Catálogo de Servicios</h1>
+
+    <!-- Mensajes de sistema -->
+    <div id="mensajes" aria-live="polite"></div>
+
+    <!-- Búsqueda por nombre/descripción/categoría y filtro por categoría (HU-09) -->
+    <form id="form-filtros" class="filter-section" role="search" novalidate>
+        <div class="form-group">
+            <label for="buscar">Buscar servicio:</label>
+            <input type="search" name="search" id="buscar" placeholder="Ej: masaje, yoga, fisioterapia">
+        </div>
+
+        <div class="form-group">
+            <label for="categoria">Categoría:</label>
+            <select name="categoria" id="categoria">
+                <option value="">Todas las Categorías</option>
+            </select>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit">Buscar</button>
+            <button type="button" id="btn-limpiar">Limpiar filtros</button>
+        </div>
+    </form>
+
+    <!-- Resultado de la búsqueda -->
+    <p id="resumen-resultados" aria-live="polite"></p>
+
+    <!-- Listado de servicios -->
+    <div id="lista-servicios" class="services-grid"></div>
+</div>
+{% endblock %}
+
+{% block extra_body %}
+<script>
+(function () {
+    var h = BEC.h;
+    var form = document.getElementById('form-filtros');
+    var grid = document.getElementById('lista-servicios');
+    var resumen = document.getElementById('resumen-resultados');
+
+    function cargarCategorias() {
+        BEC.api(BEC.cfg.api.categorias).then(function (res) {
+            if (!res.ok) { return; }   // sin categorías el catálogo igual funciona
+            BEC.lista(res.data).forEach(function (c) {
+                form.elements.categoria.appendChild(h('option', { value: c.id, text: c.nombre }));
+            });
+            // Si llegó ?categoria=ID en la URL, se deja seleccionada
+            var pre = BEC.param('categoria');
+            if (pre) { form.elements.categoria.value = pre; }
+        });
+    }
+
+    function resumir(texto) { resumen.textContent = texto; }
+
+    function cargarServicios() {
+        var q = new URLSearchParams();
+        if (form.elements['search'].value.trim()) { q.set('search', form.elements['search'].value.trim()); }
+        if (form.elements.categoria.value) { q.set('categoria', form.elements.categoria.value); }
+        var url = BEC.cfg.api.servicios + (q.toString() ? '?' + q.toString() : '');
+
+        BEC.clear(grid);
+        resumir('Buscando...');
+        BEC.api(url).then(function (res) {
+            if (!res.ok) { resumir(''); BEC.mensajeError(res); return; }
+            BEC.mensaje([], 'info');
+
+            // Solo se ofrecen servicios activos para agendar
+            var servicios = BEC.lista(res.data).filter(function (s) { return s.estado === 'ACTIVO'; });
+
+            if (!servicios.length) {
+                // La API envía un "mensaje" propio cuando una búsqueda no encuentra nada
+                var m = (res.data && res.data.mensaje) ? res.data.mensaje : 'No hay servicios disponibles en el catálogo.';
+                resumir(m);
+                return;
+            }
+            resumir(servicios.length + (servicios.length === 1 ? ' servicio encontrado' : ' servicios encontrados'));
+            servicios.forEach(function (s) { grid.appendChild(tarjeta(s)); });
+        });
+    }
+
+    function tarjeta(s) {
+        var desc = String(s.descripcion || '');
+        if (desc.length > 160) { desc = desc.slice(0, 160).trim() + '...'; }
+        return h('article', { class: 'service-card' },
+            h('h2', { text: s.nombre }),
+            s.categoria_detalle ? h('p', { class: 'category', text: s.categoria_detalle.nombre }) : null,
+            h('p', null, h('strong', { text: 'Proveedor: ' }), s.nombre_proveedor),
+            h('p', null, h('strong', { text: 'Duración: ' }), s.duracion_minutos + ' min'),
+            h('p', null, h('strong', { text: 'Precio: ' }), BEC.dinero(s.precio)),
+            h('p', { text: desc }),
+            h('a', { href: BEC.url(BEC.cfg.pages.servicio, s.id), class: 'btn', text: 'Ver Detalles' }));
+    }
+
+    form.addEventListener('submit', function (e) { e.preventDefault(); cargarServicios(); });
+    document.getElementById('btn-limpiar').addEventListener('click', function () {
+        form.reset();
+        cargarServicios();
+    });
+
+    BEC.requiereSesion().then(function (p) {
+        if (!p) { return; }
+        cargarCategorias();
+        cargarServicios();
+    });
+})();
+</script>
+{% endblock %}

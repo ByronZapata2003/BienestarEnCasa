@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Mis Servicios - BienestarEnCasa{% endblock %}
+
+{% block body %}
+<div class="container">
+    <h1>Mis Servicios</h1>
+
+    <!-- Mensajes de sistema -->
+    <div id="mensajes" aria-live="polite"></div>
+
+    <!-- Aviso cuando todavía no existe el perfil profesional -->
+    <div id="aviso-sin-perfil" hidden>
+        <p>Primero debes crear tu perfil profesional para poder registrar servicios.</p>
+        <a href="{% url 'pagina-perfil-proveedor' %}" class="btn btn-primary">Crear Perfil Profesional</a>
+    </div>
+
+    <div id="contenido" hidden>
+        <p><a href="{% url 'pagina-servicio-nuevo' %}" class="btn btn-primary">Registrar nuevo servicio</a></p>
+        <div id="lista-servicios"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_body %}
+<script>
+(function () {
+    var h = BEC.h;
+    var lista = document.getElementById('lista-servicios');
+
+    function cargar() {
+        BEC.api(BEC.cfg.api.perfilProveedor).then(function (rp) {
+            if (rp.status === 404) { document.getElementById('aviso-sin-perfil').hidden = false; return; }
+            if (!rp.ok) { BEC.mensajeError(rp); return; }
+            document.getElementById('contenido').hidden = false;
+
+            BEC.api(BEC.cfg.api.servicios).then(function (res) {
+                if (!res.ok) { BEC.mensajeError(res); return; }
+                // El listado trae todos los servicios del sistema: se dejan solo los de este proveedor
+                var mios = BEC.lista(res.data).filter(function (s) { return s.proveedor === rp.data.id; });
+                pintar(mios);
+            });
+        });
+    }
+
+    function pintar(servicios) {
+        BEC.clear(lista);
+        if (!servicios.length) { lista.appendChild(h('p', { text: 'Aún no has registrado servicios.' })); return; }
+
+        lista.appendChild(h('table', { class: 'servicios-table' },
+            h('thead', null, h('tr', null,
+                h('th', { text: 'Servicio' }), h('th', { text: 'Categoría' }), h('th', { text: 'Precio' }),
+                h('th', { text: 'Duración' }), h('th', { text: 'Estado' }), h('th', { text: 'Acciones' }))),
+            h('tbody', null, servicios.map(fila))));
+    }
+
+    function fila(s) {
+        var activo = s.estado === 'ACTIVO';
+        return h('tr', null,
+            h('td', { text: s.nombre }),
+            h('td', { text: s.categoria_detalle ? s.categoria_detalle.nombre : '' }),
+            h('td', { text: BEC.dinero(s.precio) }),
+            h('td', { text: s.duracion_minutos + ' min' }),
+            h('td', { class: 'estado-' + s.estado, text: BEC.ESTADOS_SERVICIO[s.estado] || s.estado }),
+            h('td', { class: 'acciones' },
+                h('a', { href: BEC.url(BEC.cfg.pages.servicio, s.id), class: 'btn btn-sm', text: 'Ver' }),
+                h('a', { href: BEC.url(BEC.cfg.pages.servicioEditar, s.id), class: 'btn btn-sm', text: 'Editar' }),
+                h('button', { type: 'button', class: 'btn btn-sm', text: activo ? 'Desactivar' : 'Activar',
+                    onclick: function () { cambiarEstado(s, activo ? 'INACTIVO' : 'ACTIVO'); } })));
+    }
+
+    function cambiarEstado(s, nuevo) {
+        BEC.api(BEC.url(BEC.cfg.api.servicio, s.id), { method: 'PATCH', body: { estado: nuevo } }).then(function (res) {
+            if (!res.ok) { BEC.mensajeError(res); return; }
+            BEC.mensaje('El servicio "' + s.nombre + '" ahora está ' + (BEC.ESTADOS_SERVICIO[nuevo] || nuevo).toLowerCase() + '.', 'exito');
+            cargar();
+        });
+    }
+
+    BEC.requiereSesion(['PROVEEDOR']).then(function (p) { if (p) { cargar(); } });
+})();
+</script>
+{% endblock %}

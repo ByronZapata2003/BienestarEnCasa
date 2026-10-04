@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Registro - BienestarEnCasa{% endblock %}
+
+{% block body %}
+<div class="container">
+    <h1>Registro de Usuario</h1>
+
+    <!-- Mensajes de sistema (errores de la API) -->
+    <div id="mensajes" aria-live="polite"></div>
+
+    <div class="form-container">
+        <form id="form-registro" novalidate>
+            <!-- Información Personal -->
+            <fieldset>
+                <legend>Información Personal</legend>
+
+                <div class="form-group">
+                    <label for="nombres">Nombres:</label>
+                    <input type="text" name="nombres" id="nombres" maxlength="150" autocomplete="given-name" required autofocus>
+                </div>
+
+                <div class="form-group">
+                    <label for="apellidos">Apellidos:</label>
+                    <input type="text" name="apellidos" id="apellidos" maxlength="150" autocomplete="family-name" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Correo Electrónico:</label>
+                    <input type="email" name="email" id="email" placeholder="ejemplo@correo.com" autocomplete="email" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="telefono">Teléfono (opcional):</label>
+                    <input type="tel" name="telefono" id="telefono" maxlength="20" autocomplete="tel">
+                </div>
+            </fieldset>
+
+            <!-- Selección de Rol -->
+            <fieldset>
+                <legend>Tipo de cuenta</legend>
+
+                <div class="form-group">
+                    <label for="rol">Quiero registrarme como:</label>
+                    <select name="rol" id="rol" required>
+                        <option value="">-- Selecciona --</option>
+                        <option value="CLIENTE">Cliente (quiero contratar servicios)</option>
+                        <option value="PROVEEDOR">Proveedor (quiero ofrecer servicios)</option>
+                    </select>
+                </div>
+            </fieldset>
+
+            <!-- Contraseñas -->
+            <fieldset>
+                <legend>Contraseña</legend>
+
+                <div class="form-group">
+                    <label for="password">Contraseña:</label>
+                    <input type="password" name="password" id="password" autocomplete="new-password" aria-describedby="ayuda-password" required>
+                    <small id="ayuda-password">Mínimo 8 caracteres. No puede ser solo numérica, demasiado común ni parecida a tu correo.</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="password_confirmacion">Confirmar contraseña:</label>
+                    <input type="password" name="password_confirmacion" id="password_confirmacion" autocomplete="new-password" required>
+                </div>
+            </fieldset>
+
+            <div class="form-actions">
+                <button type="submit" name="registro">Registrarse</button>
+            </div>
+        </form>
+    </div>
+
+    <p>¿Ya tienes cuenta? <a href="{% url 'pagina-login' %}">Inicia sesión aquí</a></p>
+</div>
+{% endblock %}
+
+{% block extra_body %}
+<script>
+(function () {
+    var form = document.getElementById('form-registro');
+
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        var datos = {
+            nombres: form.elements.nombres.value.trim(),
+            apellidos: form.elements.apellidos.value.trim(),
+            email: form.elements.email.value.trim(),
+            telefono: form.elements.telefono.value.trim(),
+            rol: form.elements.rol.value,
+            password: form.elements.password.value,
+            password_confirmacion: form.elements.password_confirmacion.value
+        };
+
+        // Validaciones rápidas en el navegador (el servidor valida de nuevo)
+        var faltan = [];
+        if (!datos.nombres) { faltan.push('Ingresa tus nombres.'); }
+        if (!datos.apellidos) { faltan.push('Ingresa tus apellidos.'); }
+        if (!datos.email) { faltan.push('Ingresa tu correo electrónico.'); }
+        if (!datos.rol) { faltan.push('Selecciona el tipo de cuenta.'); }
+        if (!datos.password) { faltan.push('Ingresa una contraseña.'); }
+        if (datos.password !== datos.password_confirmacion) { faltan.push('Las contraseñas no coinciden.'); }
+        if (faltan.length) { BEC.mensaje(faltan, 'error'); return; }
+
+        BEC.ocupado(form, true);
+        BEC.api(BEC.cfg.api.registro, { method: 'POST', auth: false, body: datos }).then(function (res) {
+            if (!res.ok) { BEC.mensajeError(res); BEC.ocupado(form, false); return; }
+            BEC.flash('Tu cuenta fue creada correctamente. Ya puedes iniciar sesión.');
+            window.location.replace(BEC.cfg.pages.login);
+        });
+    });
+})();
+</script>
+{% endblock %}

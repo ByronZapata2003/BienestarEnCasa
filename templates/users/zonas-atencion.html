@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Zonas de Atención - BienestarEnCasa{% endblock %}
+
+{% block body %}
+<div class="container">
+    <h1>Mis Zonas de Atención</h1>
+    <p>Indica los barrios o sectores donde prestas tus servicios.</p>
+
+    <!-- Mensajes de sistema -->
+    <div id="mensajes" aria-live="polite"></div>
+
+    <!-- Aviso cuando todavía no existe el perfil profesional -->
+    <div id="aviso-sin-perfil" hidden>
+        <p>Primero debes crear tu perfil profesional para poder registrar zonas de atención.</p>
+        <a href="{% url 'pagina-perfil-proveedor' %}" class="btn btn-primary">Crear Perfil Profesional</a>
+    </div>
+
+    <div id="contenido-zonas" hidden>
+        <!-- Formulario para agregar nueva zona -->
+        <div class="form-container">
+            <h2>Agregar Nueva Zona de Atención</h2>
+
+            <form id="form-zona" novalidate>
+                <div class="form-group">
+                    <label for="ciudad">Ciudad:</label>
+                    <input type="text" name="ciudad" id="ciudad" maxlength="100" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="barrio_sector">Barrio / Sector:</label>
+                    <input type="text" name="barrio_sector" id="barrio_sector" maxlength="150" required>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" name="zona">Agregar Zona</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Listado de zonas existentes -->
+        <h2>Tus Zonas de Atención</h2>
+        <div id="lista-zonas"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_body %}
+<script>
+(function () {
+    var h = BEC.h;
+    var form = document.getElementById('form-zona');
+    var lista = document.getElementById('lista-zonas');
+
+    function cargar() {
+        BEC.api(BEC.cfg.api.zonas).then(function (res) {
+            if (res.status === 404) {   // el proveedor aún no tiene perfil profesional
+                document.getElementById('aviso-sin-perfil').hidden = false;
+                document.getElementById('contenido-zonas').hidden = true;
+                return;
+            }
+            if (!res.ok) { BEC.mensajeError(res); return; }
+            document.getElementById('aviso-sin-perfil').hidden = true;
+            document.getElementById('contenido-zonas').hidden = false;
+            pintar(BEC.lista(res.data));
+        });
+    }
+
+    function pintar(zonas) {
+        BEC.clear(lista);
+        if (!zonas.length) { lista.appendChild(h('p', { text: 'No tienes zonas de atención registradas.' })); return; }
+        lista.appendChild(h('table', { class: 'zona-table' },
+            h('thead', null, h('tr', null, h('th', { text: 'Ciudad' }), h('th', { text: 'Barrio/Sector' }))),
+            h('tbody', null, zonas.map(function (z) {
+                return h('tr', null, h('td', { text: z.ciudad }), h('td', { text: z.barrio_sector }));
+            }))));
+    }
+
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var datos = { ciudad: form.elements.ciudad.value.trim(), barrio_sector: form.elements.barrio_sector.value.trim() };
+        if (!datos.ciudad || !datos.barrio_sector) { BEC.mensaje('Ingresa la ciudad y el barrio/sector.', 'error'); return; }
+        BEC.ocupado(form, true);
+        BEC.api(BEC.cfg.api.zonas, { method: 'POST', body: datos }).then(function (res) {
+            BEC.ocupado(form, false);
+            if (!res.ok) { BEC.mensajeError(res); return; }
+            form.reset();
+            BEC.mensaje('La zona de atención fue agregada.', 'exito');
+            cargar();
+        });
+    });
+
+    BEC.requiereSesion(['PROVEEDOR']).then(function (p) { if (p) { cargar(); } });
+})();
+</script>
+{% endblock %}

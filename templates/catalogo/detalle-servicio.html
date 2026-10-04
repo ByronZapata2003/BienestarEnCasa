@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Detalle del Servicio - BienestarEnCasa{% endblock %}
+
+{% block body %}
+<div class="container">
+    <h1 id="titulo-servicio">Detalle del Servicio</h1>
+
+    <!-- Mensajes de sistema -->
+    <div id="mensajes" aria-live="polite"></div>
+
+    <div class="service-detail-container" id="detalle" hidden>
+        <!-- Información del servicio -->
+        <div class="informacion-servicio">
+            <p><strong>Proveedor:</strong> <span id="d-proveedor"></span></p>
+            <p><strong>Duración:</strong> <span id="d-duracion"></span></p>
+            <p><strong>Precio:</strong> <span id="d-precio"></span></p>
+            <p class="category"><strong>Categoría:</strong> <span id="d-categoria"></span></p>
+            <p><strong>Estado:</strong> <span id="d-estado"></span></p>
+
+            <div class="descripcion">
+                <h3>Descripción</h3>
+                <div id="d-descripcion"></div>
+            </div>
+
+            <!-- Multimedia -->
+            <div class="multimedia-section" id="bloque-multimedia" hidden>
+                <h3>Galería</h3>
+                <ul id="d-multimedia"></ul>
+            </div>
+
+            <!-- Insumos y Equipos -->
+            <div class="insumos-section" id="bloque-insumos" hidden>
+                <h3>Insumos y Equipos</h3>
+                <ul id="d-insumos"></ul>
+            </div>
+        </div>
+
+        <!-- Botones de acción -->
+        <div class="options-menu">
+            <a href="#" id="btn-agendar" class="btn btn-primary" hidden>Agendar este Servicio</a>
+            <a href="#" id="btn-editar" class="btn" hidden>Editar este Servicio</a>
+            <a href="{% url 'pagina-catalogo' %}" class="btn">Volver al Catálogo</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_body %}
+<script>
+(function () {
+    var h = BEC.h;
+    var ID = {{ pk }};
+    var TIPOS = { INSUMO: 'Insumo', EQUIPO: 'Equipo', IMAGEN: 'Imagen', VIDEO: 'Video' };
+
+    function esUrl(t) { return /^https?:\/\//i.test(t); }
+
+    function pintar(s, perfil, miPerfilProveedor) {
+        document.title = s.nombre + ' - BienestarEnCasa';
+        document.getElementById('titulo-servicio').textContent = s.nombre;
+        document.getElementById('d-proveedor').textContent = s.nombre_proveedor;
+        document.getElementById('d-duracion').textContent = s.duracion_minutos + ' minutos';
+        document.getElementById('d-precio').textContent = BEC.dinero(s.precio);
+        document.getElementById('d-categoria').textContent = s.categoria_detalle ? s.categoria_detalle.nombre : 'Sin categoría';
+        document.getElementById('d-estado').textContent = BEC.ESTADOS_SERVICIO[s.estado] || s.estado;
+
+        var desc = document.getElementById('d-descripcion');
+        String(s.descripcion).split(/\n+/).forEach(function (l) { if (l.trim()) { desc.appendChild(h('p', { text: l })); } });
+
+        if (s.multimedia && s.multimedia.length) {
+            document.getElementById('bloque-multimedia').hidden = false;
+            var ul = document.getElementById('d-multimedia');
+            s.multimedia.forEach(function (m) {
+                var ref = esUrl(m.url_o_archivo)
+                    ? h('a', { href: m.url_o_archivo, target: '_blank', rel: 'noopener noreferrer', text: m.url_o_archivo })
+                    : m.url_o_archivo;
+                ul.appendChild(h('li', { class: 'media-item' }, h('strong', { text: (TIPOS[m.tipo] || m.tipo) + ': ' }), ref));
+            });
+        }
+
+        if (s.insumos_equipos && s.insumos_equipos.length) {
+            document.getElementById('bloque-insumos').hidden = false;
+            var ul2 = document.getElementById('d-insumos');
+            s.insumos_equipos.forEach(function (i) {
+                ul2.appendChild(h('li', { text: i.nombre + (i.descripcion ? ' - ' + i.descripcion : '') + ' (' + (TIPOS[i.tipo] || i.tipo) + ')' }));
+            });
+        }
+
+        // Acciones según el rol
+        var agendar = document.getElementById('btn-agendar');
+        if (perfil.rol === 'CLIENTE' && s.estado === 'ACTIVO') {
+            agendar.href = BEC.url(BEC.cfg.pages.solicitudCrear, s.id);
+            agendar.hidden = false;
+        }
+        var editar = document.getElementById('btn-editar');
+        if (perfil.rol === 'PROVEEDOR' && miPerfilProveedor && miPerfilProveedor.id === s.proveedor) {
+            editar.href = BEC.url(BEC.cfg.pages.servicioEditar, s.id);
+            editar.hidden = false;
+        }
+        document.getElementById('detalle').hidden = false;
+    }
+
+    BEC.requiereSesion().then(function (perfil) {
+        if (!perfil) { return; }
+        var pedidos = [BEC.api(BEC.url(BEC.cfg.api.servicio, ID))];
+        if (perfil.rol === 'PROVEEDOR') { pedidos.push(BEC.api(BEC.cfg.api.perfilProveedor)); }
+
+        Promise.all(pedidos).then(function (r) {
+            if (r[0].status === 404) { BEC.mensaje('El servicio que buscas no existe o ya no está disponible.', 'error'); return; }
+            if (!r[0].ok) { BEC.mensajeError(r[0]); return; }
+            pintar(r[0].data, perfil, r[1] && r[1].ok ? r[1].data : null);
+        });
+    });
+})();
+</script>
+{% endblock %}

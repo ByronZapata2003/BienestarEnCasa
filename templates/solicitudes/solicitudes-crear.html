@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}Crear Solicitud - BienestarEnCasa{% endblock %}
+
+{% block body %}
+<div class="container">
+    <h1>Crear Nueva Solicitud de Reserva</h1>
+
+    <!-- Mensajes de sistema -->
+    <div id="mensajes" aria-live="polite"></div>
+
+    <div class="form-container" id="contenido" hidden>
+        <form id="form-solicitud" novalidate>
+            <!-- Información del servicio (solo lectura) -->
+            <div class="info-servicio">
+                <h3>Servicio: <span id="s-nombre"></span></h3>
+                <p><strong>Proveedor:</strong> <span id="s-proveedor"></span></p>
+                <p><strong>Precio:</strong> <span id="s-precio"></span></p>
+                <p><strong>Duración:</strong> <span id="s-duracion"></span></p>
+            </div>
+
+            <fieldset>
+                <legend>Detalles de la Reserva</legend>
+
+                <!-- Fecha y Hora -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="fecha_solicitada">Fecha:</label>
+                        <input type="date" name="fecha_solicitada" id="fecha_solicitada" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="hora_solicitada">Hora:</label>
+                        <input type="time" name="hora_solicitada" id="hora_solicitada" required>
+                    </div>
+                </div>
+            </fieldset>
+
+            <fieldset>
+                <legend>Lugar de atención</legend>
+
+                <!-- Atajo: usar una dirección ya guardada -->
+                <div class="form-group" id="grupo-direcciones" hidden>
+                    <label for="direccion_guardada">Usar una de mis direcciones guardadas:</label>
+                    <select id="direccion_guardada">
+                        <option value="">-- Escribir otra dirección --</option>
+                    </select>
+                </div>
+                <p id="aviso-sin-direcciones" hidden>
+                    Aún no tienes direcciones guardadas.
+                    <a href="{% url 'pagina-direcciones' %}">Agrega una</a> para llenarla más rápido la próxima vez.
+                </p>
+
+                <!-- Dirección de atención -->
+                <div class="form-group">
+                    <label for="direccion_atencion">Dirección de Atención:</label>
+                    <input type="text" name="direccion_atencion" id="direccion_atencion" maxlength="255" required>
+                </div>
+
+                <!-- Barrio/Sector -->
+                <div class="form-group">
+                    <label for="barrio_sector">Barrio/Sector:</label>
+                    <input type="text" name="barrio_sector" id="barrio_sector" maxlength="100" required>
+                </div>
+
+                <!-- Información complementaria -->
+                <div class="form-group">
+                    <label for="informacion_complementaria">Información Complementaria (opcional):</label>
+                    <textarea name="informacion_complementaria" id="informacion_complementaria" rows="3"></textarea>
+                </div>
+
+                <!-- Observaciones adicionales -->
+                <div class="form-group">
+                    <label for="observaciones">Observaciones (opcional):</label>
+                    <textarea name="observaciones" id="observaciones" rows="3"></textarea>
+                </div>
+            </fieldset>
+
+            <!-- Botón de envío -->
+            <div class="form-actions">
+                <button type="submit" name="crear">Crear Solicitud</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Enlace al catálogo -->
+    <p><a href="{% url 'pagina-catalogo' %}">Volver al Catálogo de Servicios</a></p>
+</div>
+{% endblock %}
+
+{% block extra_body %}
+<script>
+(function () {
+    var h = BEC.h;
+    var ID = {{ pk }};
+    var form = document.getElementById('form-solicitud');
+    var servicio = null;
+    var direcciones = [];
+
+    // Fecha mínima: hoy (en la zona horaria del navegador)
+    function hoy() {
+        var d = new Date();
+        var m = String(d.getMonth() + 1).padStart(2, '0');
+        var dia = String(d.getDate()).padStart(2, '0');
+        return d.getFullYear() + '-' + m + '-' + dia;
+    }
+    form.elements.fecha_solicitada.min = hoy();
+
+    function pintarServicio(s) {
+        document.getElementById('s-nombre').textContent = s.nombre;
+        document.getElementById('s-proveedor').textContent = s.nombre_proveedor;
+        document.getElementById('s-precio').textContent = BEC.dinero(s.precio);
+        document.getElementById('s-duracion').textContent = s.duracion_minutos + ' minutos';
+    }
+
+    function pintarDirecciones() {
+        if (!direcciones.length) { document.getElementById('aviso-sin-direcciones').hidden = false; return; }
+        var sel = document.getElementById('direccion_guardada');
+        direcciones.forEach(function (d, i) {
+            sel.appendChild(h('option', { value: i, text: d.direccion + ' - ' + d.barrio_sector + (d.es_principal ? ' (principal)' : '') }));
+        });
+        document.getElementById('grupo-direcciones').hidden = false;
+        // La dirección principal queda preseleccionada para ahorrar tiempo
+        var idxPrincipal = direcciones.findIndex(function (d) { return d.es_principal; });
+        if (idxPrincipal >= 0) { sel.value = idxPrincipal; aplicarDireccion(idxPrincipal); }
+        sel.addEventListener('change', function () { aplicarDireccion(sel.value); });
+    }
+
+    function aplicarDireccion(idx) {
+        if (idx === '' || idx === null) { return; }
+        var d = direcciones[Number(idx)];
+        if (!d) { return; }
+        form.elements.direccion_atencion.value = (d.direccion + ', ' + d.ciudad).slice(0, 255);
+        form.elements.barrio_sector.value = d.barrio_sector;
+        form.elements.informacion_complementaria.value = d.informacion_complementaria || '';
+    }
+
+    BEC.requiereSesion(['CLIENTE']).then(function (p) {
+        if (!p) { return; }
+        Promise.all([BEC.api(BEC.url(BEC.cfg.api.servicio, ID)), BEC.api(BEC.cfg.api.direcciones)]).then(function (r) {
+            if (r[0].status === 404) { BEC.mensaje('El servicio que quieres agendar no existe.', 'error'); return; }
+            if (!r[0].ok) { BEC.mensajeError(r[0]); return; }
+            servicio = r[0].data;
+            if (servicio.estado !== 'ACTIVO') { BEC.mensaje('Este servicio no está disponible para agendar en este momento.', 'error'); return; }
+
+            pintarServicio(servicio);
+            if (r[1].ok) { direcciones = BEC.lista(r[1].data); }
+            pintarDirecciones();
+            document.getElementById('contenido').hidden = false;
+        });
+    });
+
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        if (!servicio) { return; }
+        var datos = {
+            // La API exige el servicio y el proveedor dueño de ese servicio
+            servicio: servicio.id,
+            proveedor: servicio.proveedor,
+            fecha_solicitada: form.elements.fecha_solicitada.value,
+            hora_solicitada: form.elements.hora_solicitada.value,
+            direccion_atencion: form.elements.direccion_atencion.value.trim(),
+            barrio_sector: form.elements.barrio_sector.value.trim(),
+            informacion_complementaria: form.elements.informacion_complementaria.value.trim(),
+            observaciones: form.elements.observaciones.value.trim()
+        };
+        var faltan = [];
+        if (!datos.fecha_solicitada) { faltan.push('Selecciona la fecha de la reserva.'); }
+        else if (datos.fecha_solicitada < hoy()) { faltan.push('La fecha de la reserva no puede ser anterior a hoy.'); }
+        if (!datos.hora_solicitada) { faltan.push('Selecciona la hora de la reserva.'); }
+        if (!datos.direccion_atencion) { faltan.push('Ingresa la dirección de atención.'); }
+        if (!datos.barrio_sector) { faltan.push('Ingresa el barrio o sector.'); }
+        if (faltan.length) { BEC.mensaje(faltan, 'error'); return; }
+
+        BEC.ocupado(form, true);
+        BEC.api(BEC.cfg.api.solicitudes, { method: 'POST', body: datos }).then(function (res) {
+            if (!res.ok) { BEC.ocupado(form, false); BEC.mensajeError(res); return; }
+            BEC.flash('Tu solicitud #' + res.data.id + ' fue creada y quedó en estado Pendiente.');
+            window.location.replace(BEC.cfg.pages.misSolicitudes);
+        });
+    });
+})();
+</script>
+{% endblock %}
