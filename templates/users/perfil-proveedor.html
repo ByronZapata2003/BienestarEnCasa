@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Perfil Profesional - BienestarEnCasa{% endblock %}
+
+{% block body %}
+<div class="container">
+    <h1>Mi Perfil Profesional</h1>
+
+    <!-- Mensajes de sistema -->
+    <div id="mensajes" aria-live="polite"></div>
+
+    <div class="perfil-container">
+        <!--
+            Una sola pantalla para crear o actualizar:
+            - Si el proveedor aún no tiene perfil profesional -> se crea (POST)
+            - Si ya lo tiene -> se edita (PATCH)
+        -->
+        <h2 id="titulo-perfil">Cargando...</h2>
+        <p id="ayuda-perfil"></p>
+
+        <form id="form-proveedor" novalidate hidden>
+            <div class="form-group">
+                <label for="descripcion_profesional">Descripción profesional:</label>
+                <textarea name="descripcion_profesional" id="descripcion_profesional" rows="8"
+                          placeholder="Cuéntales a tus clientes quién eres, tu experiencia y cómo trabajas." required></textarea>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" name="guardar" id="btn-guardar">Guardar</button>
+            </div>
+        </form>
+
+        <!-- Botones de acción -->
+        <div class="options-menu">
+            <a href="{% url 'pagina-zonas' %}" class="btn">Gestionar Zonas de Atención</a>
+            <a href="{% url 'pagina-panel-proveedor' %}" class="btn">Ver Panel del Proveedor</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_body %}
+<script>
+(function () {
+    var form = document.getElementById('form-proveedor');
+    var existe = false;
+
+    function modo(editar) {
+        existe = editar;
+        document.getElementById('titulo-perfil').textContent = editar ? 'Tu Perfil Profesional' : 'Registra tu Perfil Profesional';
+        document.getElementById('ayuda-perfil').textContent = editar
+            ? 'Actualiza la descripción que ven los clientes.'
+            : 'Aún no tienes un perfil profesional. Debes crearlo antes de registrar zonas de atención y servicios.';
+        document.getElementById('btn-guardar').textContent = editar ? 'Actualizar Perfil' : 'Crear Perfil Profesional';
+        form.hidden = false;
+    }
+
+    BEC.requiereSesion(['PROVEEDOR']).then(function (p) {
+        if (!p) { return; }
+        BEC.api(BEC.cfg.api.perfilProveedor).then(function (res) {
+            if (res.ok) {
+                form.elements.descripcion_profesional.value = res.data.descripcion_profesional;
+                modo(true);
+            } else if (res.status === 404) {
+                modo(false);          // todavía no existe: se mostrará el formulario de creación
+            } else {
+                document.getElementById('titulo-perfil').textContent = 'Mi Perfil Profesional';
+                BEC.mensajeError(res);
+            }
+        });
+    });
+
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var descripcion = form.elements.descripcion_profesional.value.trim();
+        if (!descripcion) { BEC.mensaje('Escribe la descripción de tu perfil profesional.', 'error'); return; }
+
+        BEC.ocupado(form, true);
+        BEC.api(BEC.cfg.api.perfilProveedor, {
+            method: existe ? 'PATCH' : 'POST',
+            body: { descripcion_profesional: descripcion }
+        }).then(function (res) {
+            BEC.ocupado(form, false);
+            if (!res.ok) { BEC.mensajeError(res); return; }
+            var creado = !existe;
+            modo(true);
+            BEC.mensaje(creado ? 'Tu perfil profesional fue creado. Ahora puedes agregar tus zonas de atención y servicios.'
+                               : 'Tu perfil profesional fue actualizado.', 'exito');
+        });
+    });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block title %}Servicio - BienestarEnCasa{% endblock %}
+
+{% block body %}
+<div class="container">
+    <h1 id="titulo-pagina">Registrar Servicio</h1>
+
+    <!-- Mensajes de sistema -->
+    <div id="mensajes" aria-live="polite"></div>
+
+    <!-- Aviso cuando todavía no existe el perfil profesional -->
+    <div id="aviso-sin-perfil" hidden>
+        <p>Primero debes crear tu perfil profesional para poder registrar servicios.</p>
+        <a href="{% url 'pagina-perfil-proveedor' %}" class="btn btn-primary">Crear Perfil Profesional</a>
+    </div>
+
+    <div class="form-container" id="contenido" hidden>
+        <form id="form-servicio" novalidate>
+            <fieldset>
+                <legend>Datos del servicio</legend>
+
+                <div class="form-group">
+                    <label for="nombre">Nombre del servicio:</label>
+                    <input type="text" name="nombre" id="nombre" maxlength="150" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="categoria">Categoría:</label>
+                    <select name="categoria" id="categoria" required>
+                        <option value="">-- Selecciona una categoría --</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="descripcion">Descripción:</label>
+                    <textarea name="descripcion" id="descripcion" rows="6" required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="duracion_minutos">Duración estimada (minutos):</label>
+                    <input type="number" name="duracion_minutos" id="duracion_minutos" min="1" step="1" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="precio">Precio:</label>
+                    <input type="number" name="precio" id="precio" min="0.01" step="0.01" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="estado">Estado:</label>
+                    <select name="estado" id="estado">
+                        <option value="ACTIVO">Activo (visible para los clientes)</option>
+                        <option value="INACTIVO">Inactivo (oculto del catálogo)</option>
+                    </select>
+                </div>
+            </fieldset>
+
+            <div class="form-actions">
+                <button type="submit" name="guardar" id="btn-guardar">Guardar Servicio</button>
+                <a href="{% url 'pagina-mis-servicios' %}" class="btn">Cancelar</a>
+            </div>
+        </form>
+
+        <!-- Creación rápida de categoría (por si aún no existe la que necesitas) -->
+        <details id="detalle-categoria">
+            <summary>¿No encuentras la categoría? Crear una nueva</summary>
+            <form id="form-categoria" novalidate>
+                <div class="form-group">
+                    <label for="cat-nombre">Nombre de la categoría:</label>
+                    <input type="text" id="cat-nombre" maxlength="100">
+                </div>
+                <div class="form-group">
+                    <label for="cat-descripcion">Descripción (opcional):</label>
+                    <textarea id="cat-descripcion" rows="2"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="submit">Crear categoría</button>
+                </div>
+            </form>
+        </details>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_body %}
+<script>
+(function () {
+    var h = BEC.h;
+    // Vacío cuando la URL es "nuevo"; trae el id cuando es "editar"
+    var ID = "{{ pk|default:'' }}";
+    var form = document.getElementById('form-servicio');
+    var miPerfilId = null;
+
+    function cargarCategorias(seleccionar) {
+        return BEC.api(BEC.cfg.api.categorias).then(function (res) {
+            if (!res.ok) { BEC.mensajeError(res); return; }
+            BEC.clear(form.elements.categoria);
+            form.elements.categoria.appendChild(h('option', { value: '', text: '-- Selecciona una categoría --' }));
+            BEC.lista(res.data).forEach(function (c) {
+                form.elements.categoria.appendChild(h('option', { value: c.id, text: c.nombre }));
+            });
+            if (seleccionar) { form.elements.categoria.value = seleccionar; }
+            if (!BEC.lista(res.data).length) {
+                BEC.mensaje('Todavía no hay categorías. Crea una con la opción de abajo.', 'info');
+                document.getElementById('detalle-categoria').open = true;
+            }
+        });
+    }
+
+    function iniciar() {
+        BEC.api(BEC.cfg.api.perfilProveedor).then(function (rp) {
+            if (rp.status === 404) { document.getElementById('aviso-sin-perfil').hidden = false; return; }
+            if (!rp.ok) { BEC.mensajeError(rp); return; }
+            miPerfilId = rp.data.id;
+            document.getElementById('contenido').hidden = false;
+
+            if (!ID) { cargarCategorias(); return; }
+
+            // Modo edición
+            document.getElementById('titulo-pagina').textContent = 'Editar Servicio';
+            document.getElementById('btn-guardar').textContent = 'Guardar Cambios';
+            BEC.api(BEC.url(BEC.cfg.api.servicio, ID)).then(function (rs) {
+                if (rs.status === 404) { document.getElementById('contenido').hidden = true; BEC.mensaje('El servicio no existe.', 'error'); return; }
+                if (!rs.ok) { BEC.mensajeError(rs); return; }
+                var s = rs.data;
+                if (s.proveedor !== miPerfilId) {
+                    document.getElementById('contenido').hidden = true;
+                    BEC.mensaje('No puedes editar un servicio que pertenece a otro proveedor.', 'error');
+                    return;
+                }
+                form.elements.nombre.value = s.nombre;
+                form.elements.descripcion.value = s.descripcion;
+                form.elements.duracion_minutos.value = s.duracion_minutos;
+                form.elements.precio.value = s.precio;
+                form.elements.estado.value = s.estado;
+                cargarCategorias(s.categoria);
+            });
+        });
+    }
+
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var datos = {
+            nombre: form.elements.nombre.value.trim(),
+            categoria: form.elements.categoria.value,
+            descripcion: form.elements.descripcion.value.trim(),
+            duracion_minutos: form.elements.duracion_minutos.value,
+            precio: form.elements.precio.value,
+            estado: form.elements.estado.value
+        };
+        var faltan = [];
+        if (!datos.nombre) { faltan.push('Ingresa el nombre del servicio.'); }
+        if (!datos.categoria) { faltan.push('Selecciona una categoría.'); }
+        if (!datos.descripcion) { faltan.push('Ingresa la descripción del servicio.'); }
+        if (!(Number(datos.duracion_minutos) >= 1)) { faltan.push('La duración debe ser de al menos 1 minuto.'); }
+        if (!(Number(datos.precio) > 0)) { faltan.push('El precio debe ser mayor a 0.'); }
+        if (faltan.length) { BEC.mensaje(faltan, 'error'); return; }
+
+        datos.categoria = Number(datos.categoria);
+        datos.duracion_minutos = Number(datos.duracion_minutos);
+
+        BEC.ocupado(form, true);
+        var peticion = ID
+            ? BEC.api(BEC.url(BEC.cfg.api.servicio, ID), { method: 'PATCH', body: datos })
+            : BEC.api(BEC.cfg.api.servicios, { method: 'POST', body: datos });
+        peticion.then(function (res) {
+            BEC.ocupado(form, false);
+            if (!res.ok) { BEC.mensajeError(res); return; }
+            BEC.flash(ID ? 'El servicio fue actualizado correctamente.' : 'El servicio fue registrado correctamente.');
+            window.location.replace(BEC.cfg.pages.misServicios);
+        });
+    });
+
+    // Crear categoría sin salir de la página
+    document.getElementById('form-categoria').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var nombre = document.getElementById('cat-nombre').value.trim();
+        if (!nombre) { BEC.mensaje('Ingresa el nombre de la categoría.', 'error'); return; }
+        BEC.api(BEC.cfg.api.categorias, { method: 'POST', body: {
+            nombre: nombre, descripcion: document.getElementById('cat-descripcion').value.trim()
+        } }).then(function (res) {
+            if (!res.ok) { BEC.mensajeError(res); return; }
+            e.target.reset();
+            document.getElementById('detalle-categoria').open = false;
+            cargarCategorias(res.data.id).then(function () {
+                BEC.mensaje('La categoría "' + res.data.nombre + '" fue creada y seleccionada.', 'exito');
+            });
+        });
+    });
+
+    BEC.requiereSesion(['PROVEEDOR']).then(function (p) { if (p) { iniciar(); } });
+})();
+</script>
+{% endblock %}

@@ -1,11 +1,26 @@
 from django.shortcuts import render
 
-from rest_framework import viewsets, permissions, status
+from rest_framework import viewsets, permissions, status, generics
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.db.models import Q
 from .models import Categoria, Servicio
-from .serializers import CategoriaSerializer, ServicioSerializer
-from .permissions import IsProveedor, IsProveedorOwnerOrReadOnly
+from .serializers import CategoriaSerializer, ServicioSerializer, ServicioUpdateSerializer
+from .permissions import IsProveedor, IsProveedorOwnerOrReadOnly, IsProviderOwner
+
+class ServicioGestionView(generics.RetrieveUpdateAPIView):
+    serializer_class = ServicioUpdateSerializer
+    # CA6: IsAuthenticated deniega acceso a usuarios sin sesión
+    # CA5: IsProviderOwner deniega operaciones sobre servicios ajenos
+    permission_classes = [IsAuthenticated, IsProviderOwner]
+
+    def get_queryset(self):
+        """
+        Refuerzo de seguridad para el CA1 y CA5: 
+        Filtra el queryset base para que solo retorne servicios del proveedor autenticado.
+        """
+        # Ajustar 'proveedor__usuario' según la estructura exacta de tus modelos
+        return Servicio.objects.filter(proveedor__usuario=self.request.user)
 
 class CategoriaViewSet(viewsets.ModelViewSet):
     queryset = Categoria.objects.all()
