@@ -23,11 +23,7 @@ class IsProveedor(permissions.BasePermission):
 
 
 class IsProveedorOwnerOrReadOnly(permissions.BasePermission):
-    """
-    Permite lectura a cualquier usuario autenticado, pero solo permite
-    modificaciones al proveedor dueño del servicio. Aplica a Servicio y
-    a los objetos que cuelgan de él (multimedia, elementos).
-    """
+    #este es paque solo el provedor dueño añada lo que necesito o en su defecto edite
     message = 'Solo los proveedores pueden modificar el catálogo de servicios.'
 
     def has_permission(self, request, view):
@@ -36,7 +32,7 @@ class IsProveedorOwnerOrReadOnly(permissions.BasePermission):
             return True
         perfil = getattr(request.user, 'perfil', None)
         return perfil is not None and perfil.rol == PerfilUsuario.Rol.PROVEEDOR
-
+#si lo es
     def has_object_permission(self, request, view, obj):
         if request.method in permissions.SAFE_METHODS:
             return True
@@ -44,7 +40,7 @@ class IsProveedorOwnerOrReadOnly(permissions.BasePermission):
         servicio = getattr(obj, 'servicio', obj)
         return es_dueno_servicio(request.user, servicio)
 
-
+#lo dice abajo
 def es_dueno_servicio(user, servicio):
     perfil = getattr(user, 'perfil', None)
     return (

@@ -5,9 +5,9 @@ from .views import CerrarSesionView, InicioSesionView, MiPerfilView, RegistroVie
 
 
 urlpatterns = [
-    path('registro/', RegistroView.as_view(), name='registro'),
-    path('iniciar-sesion/', InicioSesionView.as_view(), name='iniciar-sesion'),
-    path('renovar-token/', TokenRefreshView.as_view(), name='renovar-token'),
-    path('cerrar-sesion/', CerrarSesionView.as_view(), name='cerrar-sesion'),
-    path('mi-perfil/', MiPerfilView.as_view(), name='mi-perfil'),
+    path('registro/', RegistroView.as_view(), name='registro'), #registra
+    path('iniciar-sesion/', InicioSesionView.as_view(), name='iniciar-sesion'), #inicia
+    path('renovar-token/', TokenRefreshView.as_view(), name='renovar-token'), #lo del token
+    path('cerrar-sesion/', CerrarSesionView.as_view(), name='cerrar-sesion'), #depues de cerrar dispara la view para ejecturar la logica de cerrar sesion, sobre todo la de la lista negra de tokens
+    path('mi-perfil/', MiPerfilView.as_view(), name='mi-perfil'), #carga el perfl del que este logueado
 ]

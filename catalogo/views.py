@@ -16,6 +16,7 @@ from .permissions import IsProveedorOwnerOrReadOnly, IsProviderOwner, es_dueno_s
 
 
 def filtrar_visibles(queryset, user, prefijo=''):
+    #cuando consulta un cliente o el proveedr que no es dueño, le muestra solo activo si no los otros
     """Servicios activos para todos; los inactivos solo para su proveedor dueño."""
     return queryset.filter(
         Q(**{f'{prefijo}estado': Servicio.Estado.ACTIVO})
@@ -37,6 +38,7 @@ class CategoriaViewSet(viewsets.ModelViewSet):
     queryset = Categoria.objects.all()
     serializer_class = CategoriaSerializer
     permission_classes = [permissions.IsAuthenticated]
+    #sirve para traer todas las categorias y llama a serilizer
 
 
 class ServicioViewSet(viewsets.ModelViewSet):
@@ -55,7 +57,7 @@ class ServicioViewSet(viewsets.ModelViewSet):
         'proveedor__perfil_usuario__usuario__username',
     ]
 
-    def get_queryset(self):
+    def get_queryset(self): #filtra
         return filtrar_visibles(super().get_queryset(), self.request.user)
 
     def perform_create(self, serializer):
@@ -81,7 +83,7 @@ class ServicioViewSet(viewsets.ModelViewSet):
         return Response(self.get_serializer(instance).data)
 
 
-class DetalleServicioViewSet(viewsets.ModelViewSet):
+class DetalleServicioViewSet(viewsets.ModelViewSet): #para traer los datos del servicio y solo el dueño puede escribir
     """Base para multimedia y elementos: solo el dueño del servicio escribe (HU-08)."""
     permission_classes = [permissions.IsAuthenticated, IsProveedorOwnerOrReadOnly]
     filter_backends = [DjangoFilterBackend]
@@ -89,16 +91,16 @@ class DetalleServicioViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return filtrar_visibles(super().get_queryset(), self.request.user, 'servicio__')
-
+    #de aqui pa abajo verifica que sea la persona que creo el servicio y si no es, no puede modificarlo
     def verificar_servicio(self, serializer):
         servicio = serializer.validated_data.get('servicio') or serializer.instance.servicio
-        if not es_dueno_servicio(self.request.user, servicio):
+        if not es_dueno_servicio(self.request.user, servicio): #verifica si el dueño 
             raise PermissionDenied("Solo el proveedor dueño del servicio puede modificar su contenido.")
-
+    #lo manda a crear
     def perform_create(self, serializer):
         self.verificar_servicio(serializer)
         serializer.save()
-
+    #lo manda a actualizar
     def perform_update(self, serializer):
         self.verificar_servicio(serializer)
         serializer.save()
@@ -107,8 +109,10 @@ class DetalleServicioViewSet(viewsets.ModelViewSet):
 class ContenidoMultimediaServicioViewSet(DetalleServicioViewSet):
     queryset = ContenidoMultimediaServicio.objects.select_related('servicio')
     serializer_class = ContenidoMultimediaServicioSerializer
+    #para traer los datos del servicio y solo el dueño puede escribir, hereda de DetalleServicioViewSet
 
 
 class ElementoServicioViewSet(DetalleServicioViewSet):
     queryset = ElementoServicio.objects.select_related('servicio')
     serializer_class = ElementoServicioSerializer
+    # lo mismo de arriba pero para elementos

@@ -14,27 +14,28 @@ from .serializers import ProveedorPublicoSerializer, ZonaAtencionSerializer, Per
 from catalogo.models import Servicio
 from catalogo.serializers import ServicioSerializer
 
-class RegistroView(generics.CreateAPIView):
+class RegistroView(generics.CreateAPIView): #para crear el usuario despues de registrarse
     permission_classes = (permissions.AllowAny,)
-    serializer_class = RegistroSerializer
+    serializer_class = RegistroSerializer #llama al serializer para que haga la validacion de los datos y cree el usuario y el perfil
 
-    def create(self, request, *args, **kwargs):
+    def create(self, request, *args, **kwargs): #lo crea
         serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        perfil = serializer.save()
+        serializer.is_valid(raise_exception=True)#el serializer ya verifico
+        perfil = serializer.save() 
         return Response(PerfilSerializer(perfil).data, status=status.HTTP_201_CREATED)
 
 
 class InicioSesionView(TokenObtainPairView):
     permission_classes = (permissions.AllowAny,)
     serializer_class = InicioSesionSerializer
-
+     #inicia la seccion y el serializer
 
 class CerrarSesionView(APIView):
     def post(self, request):
         serializer = CerrarSesionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        #cierra la session e invoca al serializer para que crea
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -42,7 +43,7 @@ class MiPerfilView(generics.RetrieveUpdateAPIView):
     http_method_names = ['get', 'patch', 'head', 'options']
 
     def get_serializer_class(self):
-        if self.request.method == 'PATCH':
+        if self.request.method == 'PATCH': #este es para modificar
             return ActualizarPerfilSerializer
 
         return PerfilSerializer
@@ -52,7 +53,7 @@ class MiPerfilView(generics.RetrieveUpdateAPIView):
 
 class DireccionListCreateView(generics.ListCreateAPIView):
     serializer_class = DireccionSerializer
-
+    #envia lo que tiene que hacer y respuestas al html
     def get_queryset(self):
         if self.request.user.perfil.rol != PerfilUsuario.Rol.CLIENTE:
             raise PermissionDenied('Solo los clientes pueden consultar direcciones.')
@@ -61,7 +62,7 @@ class DireccionListCreateView(generics.ListCreateAPIView):
             usuario=self.request.user
         ).order_by('-es_principal', '-creada_en')
 
-    def perform_create(self, serializer):
+    def perform_create(self, serializer): #aqui la crea y verifico si es cliente o no
         if self.request.user.perfil.rol != PerfilUsuario.Rol.CLIENTE:
             raise PermissionDenied('Solo los clientes pueden registrar direcciones.')
 
@@ -86,7 +87,7 @@ class DireccionListCreateView(generics.ListCreateAPIView):
 class DireccionDetalleView(generics.RetrieveUpdateAPIView):
     serializer_class = DireccionSerializer
 
-    def get_queryset(self):
+    def get_queryset(self): # antes de pedirla verifica que se el cliente
         if self.request.user.perfil.rol != PerfilUsuario.Rol.CLIENTE:
             raise PermissionDenied('Solo los clientes pueden consultar direcciones.')
 
@@ -96,7 +97,7 @@ class DireccionDetalleView(generics.RetrieveUpdateAPIView):
         direccion = self.get_object()
         es_principal = serializer.validated_data.get('es_principal')
 
-        if es_principal is True:
+        if es_principal is True: #verifica si es principal y si ya hay otra principal, si es asi la cambia a false
             Direccion.objects.filter(
                 usuario=self.request.user,
                 es_principal=True,
@@ -116,7 +117,7 @@ class DireccionDetalleView(generics.RetrieveUpdateAPIView):
         serializer.save()
 
 class MiPerfilProveedorView(APIView):
-    def verificar_proveedor(self, request):
+    def verificar_proveedor(self, request):#comprueba si es proveedor, si no lo es lanza un error
         if request.user.perfil.rol != PerfilUsuario.Rol.PROVEEDOR:
             raise PermissionDenied(
                 'Solo los proveedores pueden gestionar su perfil profesional.'
@@ -191,7 +192,7 @@ class MisZonasAtencionView(generics.ListCreateAPIView):
         serializer.save(perfil_proveedor=perfil_proveedor)
 
 
-class ProveedorDetalleView(generics.RetrieveAPIView):
+class ProveedorDetalleView(generics.RetrieveAPIView): #catalogo
     """Perfil público del proveedor con su catálogo activo (HU-09, HU-10)."""
     serializer_class = ProveedorPublicoSerializer
     queryset = PerfilProveedor.objects.select_related('perfil_usuario__usuario').prefetch_related(

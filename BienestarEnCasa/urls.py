@@ -20,33 +20,33 @@ from django.contrib import admin
 from django.urls import include, path
 from django.contrib.auth import views as auth_views
 
-urlpatterns = [
+urlpatterns = [ #aqui definimos que se solicita y luego las urls de cada app pa que sepa que tenga que hacer y no este esa cantidad de urls aqui, sino que se mande a cada app y que haga lo que tenga que hacer
     path('admin/', admin.site.urls),
     path('api/auth/', include('usuarios.urls')),
-    path('api/usuarios/', include('usuarios.api_urls')),
-    path('api/proveedores/', include('usuarios.proveedores_urls')),
-    path('api/catalogo/', include('catalogo.urls')),
+    path('api/usuarios/', include('usuarios.api_urls')), # manda lo de usuarios no proveedores
+    path('api/proveedores/', include('usuarios.proveedores_urls')), #manda pa proveedores
+    path('api/catalogo/', include('catalogo.urls')), #manda el render para el calalogo
     path('api/solicitudes/', include('solicitudes.urls')),
     path('recuperar-password/', 
          auth_views.PasswordResetView.as_view(
              template_name='users/password_reset.html',
              email_template_name='users/password_reset_email.html',
              subject_template_name='users/password_reset_subject.txt'
-         ), 
+         ), #para recuperar el password lo genera aqui mientras envia
          name='password_reset'),
-    path('recuperar-password/enviado/', 
+    path('recuperar-password/enviado/', #deespues que genera el link
          auth_views.PasswordResetDoneView.as_view(
              template_name='users/password_reset_done.html'
          ), 
          name='password_reset_done'),
-    path('restablecer/<uidb64>/<token>/', 
+    path('restablecer/<uidb64>/<token>/', #aqui para que recupere la contra
          auth_views.PasswordResetConfirmView.as_view(
              template_name='users/password_reset_confirm.html'
          ), 
          name='password_reset_confirm'),
-    path('restablecer/completo/', 
+    path('restablecer/completo/', #despues de que la restablecio
          auth_views.PasswordResetCompleteView.as_view(
              template_name='users/password_reset_complete.html'
          ), 
          name='password_reset_complete'),
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) #esto es para todo el proyecto, aqui permite y en lo que se cambio en settings que se pueda carga lo que sea de media
