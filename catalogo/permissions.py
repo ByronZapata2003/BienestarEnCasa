@@ -9,7 +9,7 @@ class IsProviderOwner(permissions.BasePermission):
     """
     def has_object_permission(self, request, view, obj):
         # Asegura que el usuario autenticado sea el dueño del servicio
-        return obj.proveedor.usuario == request.user
+        return obj.proveedor.perfil_usuario.usuario == request.user
 
 class IsProveedor(permissions.BasePermission):
     """
@@ -23,15 +23,28 @@ class IsProveedor(permissions.BasePermission):
 
 
 class IsProveedorOwnerOrReadOnly(permissions.BasePermission):
-    """
-    Permite lectura a cualquier usuario autenticado, pero solo permite
-    modificaciones al proveedor dueño del servicio.
-    """
+    #este es paque solo el provedor dueño añada lo que necesito o en su defecto edite
+    message = 'Solo los proveedores pueden modificar el catálogo de servicios.'
+
+    def has_permission(self, request, view):
+        # Rechaza escrituras de clientes antes de validar el cuerpo de la petición
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        perfil = getattr(request.user, 'perfil', None)
+        return perfil is not None and perfil.rol == PerfilUsuario.Rol.PROVEEDOR
+#si lo es
     def has_object_permission(self, request, view, obj):
         if request.method in permissions.SAFE_METHODS:
             return True
 
-        # Comprueba si el usuario autenticado posee el perfil de proveedor que registró el servicio
-        if hasattr(request.user, 'perfil') and hasattr(request.user.perfil, 'perfil_profesional'):
-            return obj.proveedor == request.user.perfil.perfil_profesional
-        return False
+        servicio = getattr(obj, 'servicio', obj)
+        return es_dueno_servicio(request.user, servicio)
+
+#lo dice abajo
+def es_dueno_servicio(user, servicio):
+    perfil = getattr(user, 'perfil', None)
+    return (
+        perfil is not None
+        and hasattr(perfil, 'perfil_profesional')
+        and servicio.proveedor_id == perfil.perfil_profesional.id
+    )

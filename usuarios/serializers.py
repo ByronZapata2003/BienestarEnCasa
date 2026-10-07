@@ -6,6 +6,8 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from catalogo.serializers import ServicioSerializer
+
 from .models import Direccion, PerfilProveedor, PerfilUsuario, ZonaAtencion
 
 
@@ -13,6 +15,7 @@ Usuario = get_user_model()
 
 
 class RegistroSerializer(serializers.Serializer):
+    #verifica datos antes de enviarlos al modelo
     nombres = serializers.CharField(max_length=150)
     apellidos = serializers.CharField(max_length=150)
     email = serializers.EmailField()
@@ -20,7 +23,7 @@ class RegistroSerializer(serializers.Serializer):
     password_confirmacion = serializers.CharField(write_only=True, trim_whitespace=False)
     rol = serializers.ChoiceField(choices=PerfilUsuario.Rol.choices)
     telefono = serializers.CharField(max_length=20, required=False, allow_blank=True)
-
+#valida que el email no exista, valida la contraseña y valida que las contraseñas coincidan
     def validate_email(self, value):
         email = value.lower()
         if Usuario.objects.filter(email__iexact=email).exists():
@@ -35,8 +38,8 @@ class RegistroSerializer(serializers.Serializer):
         if attrs['password'] != attrs['password_confirmacion']:
             raise serializers.ValidationError({'password_confirmacion': 'Las contraseñas no coinciden.'})
         return attrs
-
-    @transaction.atomic
+#valida los datos y crea el usuario y el perfil, ademas de crear el usuario con el email como username
+    @transaction.atomic #hace que si falla al crear tanto el usuario o el perfil no se cree ni uno ni otro
     def create(self, validated_data):
         validated_data.pop('password_confirmacion')
         password = validated_data.pop('password')
@@ -53,7 +56,7 @@ class RegistroSerializer(serializers.Serializer):
         return PerfilUsuario.objects.create(usuario=usuario, rol=rol, telefono=telefono)
 
 
-class PerfilSerializer(serializers.ModelSerializer):
+class PerfilSerializer(serializers.ModelSerializer): #viene de la view de mi perfil, carga los datos del usuario y del perfil
     email = serializers.EmailField(source='usuario.email', read_only=True)
     nombres = serializers.CharField(source='usuario.first_name', read_only=True)
     apellidos = serializers.CharField(source='usuario.last_name', read_only=True)
@@ -63,7 +66,7 @@ class PerfilSerializer(serializers.ModelSerializer):
         fields = ('id', 'email', 'nombres', 'apellidos', 'rol', 'telefono', 'creado_en', 'actualizado_en')
         read_only_fields = ('id', 'rol', 'creado_en', 'actualizado_en')
 
-class ActualizarPerfilSerializer(serializers.ModelSerializer):
+class ActualizarPerfilSerializer(serializers.ModelSerializer): #lo mismo de arriba pero para actualizar, no permite cambiar el email ni el rol
     nombres = serializers.CharField(
         source='usuario.first_name',
         max_length=150,
@@ -79,7 +82,7 @@ class ActualizarPerfilSerializer(serializers.ModelSerializer):
         model = PerfilUsuario
         fields = ('nombres', 'apellidos', 'telefono')
 
-    def update(self, instance, validated_data):
+    def update(self, instance, validated_data): #aqui despues de validar guarda
         datos_usuario = validated_data.pop('usuario', {})
 
         for campo, valor in datos_usuario.items():
@@ -90,7 +93,7 @@ class ActualizarPerfilSerializer(serializers.ModelSerializer):
 
         return super().update(instance, validated_data)
 
-class InicioSesionSerializer(TokenObtainPairSerializer):
+class InicioSesionSerializer(TokenObtainPairSerializer): #viene de su view, valida que el email y la contraseña sean correctos y genera el token de acceso y el de refresco
     username_field = 'email'
 
     def validate(self, attrs):
@@ -104,7 +107,7 @@ class InicioSesionSerializer(TokenObtainPairSerializer):
             raise AuthenticationFailed('Correo o contraseña incorrectos.')
 
         refresh = self.get_token(usuario)
-        return {'refresh': str(refresh), 'access': str(refresh.access_token)}
+        return {'refresh': str(refresh), 'access': str(refresh.access_token)} #tokens
 
 
 class CerrarSesionSerializer(serializers.Serializer):
@@ -112,7 +115,7 @@ class CerrarSesionSerializer(serializers.Serializer):
 
     def save(self, **kwargs):
         try:
-            RefreshToken(self.validated_data['refresh']).blacklist()
+            RefreshToken(self.validated_data['refresh']).blacklist()#aqui manda el refresh y lo manda a lista negra pa que nadie lo use mas 
         except Exception as error:
             raise serializers.ValidationError({'refresh': 'El token de actualización no es válido.'}) from error
 
@@ -148,3 +151,21 @@ class ZonaAtencionSerializer(serializers.ModelSerializer):
         model = ZonaAtencion
         fields = ('id', 'ciudad', 'barrio_sector')
         read_only_fields = ('id',)
+
+
+class ProveedorPublicoSerializer(serializers.ModelSerializer):
+    nombres = serializers.CharField(source='perfil_usuario.usuario.first_name', read_only=True)
+    apellidos = serializers.CharField(source='perfil_usuario.usuario.last_name', read_only=True)
+    zonas_atencion = ZonaAtencionSerializer(many=True, read_only=True)
+    servicios = ServicioSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = PerfilProveedor
+        fields = (
+            'id',
+            'nombres',
+            'apellidos',
+            'descripcion_profesional',
+            'zonas_atencion',
+            'servicios',
+        )

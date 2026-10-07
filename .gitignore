@@ -1,6 +1,9 @@
 # Entorno virtual y secretos locales
 env/
 .env
+media/
+
+
 
 # Archivos generados por Python y Django
 __pycache__/
