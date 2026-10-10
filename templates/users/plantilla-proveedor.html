@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Panel del Proveedor - BienestarEnCasa{% endblock %}
+
+{% block body %}
+<div class="container">
+    <h1>Mi Perfil Profesional Detalle</h1>
+
+    <!-- Mensajes de sistema -->
+    <div id="mensajes" aria-live="polite"></div>
+
+    <div class="perfil-container">
+        <!-- Perfil Profesional -->
+        <section id="bloque-perfil" class="informacion-proveedor">
+            <h2>Perfil profesional</h2>
+            <div id="contenido-perfil"><p>Cargando...</p></div>
+        </section>
+
+        <!-- Zonas de atención -->
+        <section id="bloque-zonas" hidden>
+            <h2>Zonas de atención</h2>
+            <div id="contenido-zonas"></div>
+            <a href="{% url 'pagina-zonas' %}" class="btn">Gestionar Zonas de Atención</a>
+        </section>
+
+        <!-- Servicios -->
+        <section id="bloque-servicios" hidden>
+            <h2>Mis servicios</h2>
+            <div id="contenido-servicios"></div>
+            <a href="{% url 'pagina-mis-servicios' %}" class="btn">Gestionar Mis Servicios</a>
+            <a href="{% url 'pagina-servicio-nuevo' %}" class="btn btn-primary">Registrar nuevo servicio</a>
+        </section>
+
+        <!-- Botones de acción -->
+        <div class="options-menu">
+            <a href="{% url 'pagina-perfil-proveedor' %}" class="btn">Editar Perfil Profesional</a>
+            <a href="{% url 'pagina-perfil' %}" class="btn">Mi Perfil Personal</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_body %}
+<script>
+(function () {
+    var h = BEC.h;
+
+    BEC.requiereSesion(['PROVEEDOR']).then(function (p) {
+        if (!p) { return; }
+        var cp = document.getElementById('contenido-perfil');
+
+        BEC.api(BEC.cfg.api.perfilProveedor).then(function (res) {
+            BEC.clear(cp);
+            if (res.status === 404) {
+                cp.appendChild(h('p', { text: 'No se ha registrado un perfil profesional aún.' }));
+                cp.appendChild(h('a', { href: BEC.cfg.pages.perfilProveedor, class: 'btn btn-primary', text: 'Crear Perfil Profesional' }));
+                return;
+            }
+            if (!res.ok) { BEC.mensajeError(res); return; }
+
+            var perfil = res.data;
+            cp.appendChild(h('p', { text: p.nombres + ' ' + p.apellidos }));
+            // La descripción puede traer saltos de línea: se respetan creando un párrafo por línea
+            String(perfil.descripcion_profesional).split(/\n+/).forEach(function (linea) {
+                if (linea.trim()) { cp.appendChild(h('p', { class: 'descripcion', text: linea })); }
+            });
+            cp.appendChild(h('p', { text: 'Última actualización: ' + BEC.fechaHora(perfil.actualizado_en) }));
+
+            cargarZonas();
+            cargarServicios(perfil.id);
+        });
+    });
+
+    function cargarZonas() {
+        var box = document.getElementById('contenido-zonas');
+        document.getElementById('bloque-zonas').hidden = false;
+        BEC.api(BEC.cfg.api.zonas).then(function (res) {
+            BEC.clear(box);
+            if (!res.ok) { BEC.mensajeError(res); return; }
+            var zonas = BEC.lista(res.data);
+            if (!zonas.length) { box.appendChild(h('p', { text: 'Aún no has registrado zonas de atención.' })); return; }
+            box.appendChild(h('ul', null, zonas.map(function (z) { return h('li', { text: z.barrio_sector + ', ' + z.ciudad }); })));
+        });
+    }
+
+    function cargarServicios(idPerfil) {
+        var box = document.getElementById('contenido-servicios');
+        document.getElementById('bloque-servicios').hidden = false;
+        BEC.api(BEC.cfg.api.servicios).then(function (res) {
+            BEC.clear(box);
+            if (!res.ok) { BEC.mensajeError(res); return; }
+            // El listado trae todos los servicios; aquí solo interesan los de este proveedor
+            var mios = BEC.lista(res.data).filter(function (s) { return s.proveedor === idPerfil; });
+            if (!mios.length) { box.appendChild(h('p', { text: 'Aún no has registrado servicios.' })); return; }
+            box.appendChild(h('ul', null, mios.map(function (s) {
+                return h('li', null,
+                    h('a', { href: BEC.url(BEC.cfg.pages.servicio, s.id), text: s.nombre }),
+                    ' (' + (BEC.ESTADOS_SERVICIO[s.estado] || s.estado) + ')');
+            })));
+        });
+    }
+})();
+</script>
+{% endblock %}

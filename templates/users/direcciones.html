@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}Mis Direcciones - BienestarEnCasa{% endblock %}
+
+{% block body %}
+<div class="container">
+    <h1>Mis Direcciones</h1>
+    <p>Guarda las direcciones donde quieres recibir los servicios a domicilio.</p>
+
+    <!-- Mensajes de sistema -->
+    <div id="mensajes" aria-live="polite"></div>
+
+    <!-- Listado de direcciones -->
+    <section id="seccion-lista">
+        <h2>Direcciones guardadas</h2>
+        <div id="lista-direcciones"></div>
+    </section>
+
+    <!-- Formulario para agregar o editar -->
+    <section class="form-container">
+        <h2 id="titulo-form">Agregar nueva dirección</h2>
+
+        <form id="form-direccion" novalidate>
+            <input type="hidden" name="id" id="direccion-id">
+
+            <div class="form-group">
+                <label for="direccion">Dirección:</label>
+                <input type="text" name="direccion" id="direccion" maxlength="255" placeholder="Ej: Carrera 10 # 20-30" required>
+            </div>
+
+            <div class="form-group">
+                <label for="ciudad">Ciudad:</label>
+                <input type="text" name="ciudad" id="ciudad" maxlength="100" required>
+            </div>
+
+            <div class="form-group">
+                <label for="barrio_sector">Barrio / Sector:</label>
+                <input type="text" name="barrio_sector" id="barrio_sector" maxlength="100" required>
+            </div>
+
+            <div class="form-group">
+                <label for="informacion_complementaria">Información complementaria (opcional):</label>
+                <textarea name="informacion_complementaria" id="informacion_complementaria" rows="3"
+                          placeholder="Apartamento, torre, indicaciones para llegar..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="es_principal">
+                    <input type="checkbox" name="es_principal" id="es_principal">
+                    Usar como dirección principal
+                </label>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" name="guardar" id="btn-guardar">Guardar dirección</button>
+                <button type="button" id="btn-cancelar" hidden>Cancelar edición</button>
+            </div>
+        </form>
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_body %}
+<script>
+(function () {
+    var form = document.getElementById('form-direccion');
+    var lista = document.getElementById('lista-direcciones');
+    var direcciones = [];
+
+    function cargar() {
+        BEC.api(BEC.cfg.api.direcciones).then(function (res) {
+            if (!res.ok) { BEC.mensajeError(res); return; }
+            direcciones = BEC.lista(res.data);
+            pintar();
+        });
+    }
+
+    function pintar() {
+        BEC.clear(lista);
+        if (!direcciones.length) {
+            lista.appendChild(BEC.h('p', { text: 'Aún no tienes direcciones guardadas. Agrega la primera con el formulario.' }));
+            return;
+        }
+        var cuerpo = BEC.h('tbody');
+        direcciones.forEach(function (d) {
+            var acciones = BEC.h('td', { class: 'acciones' },
+                BEC.h('button', { type: 'button', class: 'btn btn-sm', text: 'Editar', onclick: function () { editar(d); } }),
+                d.es_principal ? null : BEC.h('button', { type: 'button', class: 'btn btn-sm', text: 'Marcar como principal',
+                    onclick: function () { hacerPrincipal(d); } }));
+            cuerpo.appendChild(BEC.h('tr', null,
+                BEC.h('td', { text: d.direccion }),
+                BEC.h('td', { text: d.ciudad }),
+                BEC.h('td', { text: d.barrio_sector }),
+                BEC.h('td', { text: d.informacion_complementaria || '' }),
+                BEC.h('td', { text: d.es_principal ? 'Principal' : '' }),
+                acciones));
+        });
+        lista.appendChild(BEC.h('table', { class: 'direcciones-table' },
+            BEC.h('thead', null, BEC.h('tr', null,
+                BEC.h('th', { text: 'Dirección' }), BEC.h('th', { text: 'Ciudad' }), BEC.h('th', { text: 'Barrio/Sector' }),
+                BEC.h('th', { text: 'Información complementaria' }), BEC.h('th', { text: 'Principal' }), BEC.h('th', { text: 'Acciones' }))),
+            cuerpo));
+    }
+
+    function editar(d) {
+        document.getElementById('direccion-id').value = d.id;
+        form.elements.direccion.value = d.direccion;
+        form.elements.ciudad.value = d.ciudad;
+        form.elements.barrio_sector.value = d.barrio_sector;
+        form.elements.informacion_complementaria.value = d.informacion_complementaria || '';
+        form.elements.es_principal.checked = !!d.es_principal;
+        document.getElementById('titulo-form').textContent = 'Editar dirección';
+        document.getElementById('btn-guardar').textContent = 'Guardar cambios';
+        document.getElementById('btn-cancelar').hidden = false;
+        form.elements.direccion.focus();
+    }
+
+    function reiniciarForm() {
+        form.reset();
+        document.getElementById('direccion-id').value = '';
+        document.getElementById('titulo-form').textContent = 'Agregar nueva dirección';
+        document.getElementById('btn-guardar').textContent = 'Guardar dirección';
+        document.getElementById('btn-cancelar').hidden = true;
+    }
+
+    function hacerPrincipal(d) {
+        BEC.api(BEC.url(BEC.cfg.api.direccion, d.id), { method: 'PATCH', body: { es_principal: true } }).then(function (res) {
+            if (!res.ok) { BEC.mensajeError(res); return; }
+            BEC.mensaje('Se actualizó tu dirección principal.', 'exito');
+            cargar();
+        });
+    }
+
+    document.getElementById('btn-cancelar').addEventListener('click', function () {
+        reiniciarForm();
+        BEC.mensaje([], 'info');
+    });
+
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var id = document.getElementById('direccion-id').value;
+        var datos = {
+            direccion: form.elements.direccion.value.trim(),
+            ciudad: form.elements.ciudad.value.trim(),
+            barrio_sector: form.elements.barrio_sector.value.trim(),
+            informacion_complementaria: form.elements.informacion_complementaria.value.trim(),
+            es_principal: form.elements.es_principal.checked
+        };
+        if (!datos.direccion || !datos.ciudad || !datos.barrio_sector) {
+            BEC.mensaje('La dirección, la ciudad y el barrio/sector son obligatorios.', 'error');
+            return;
+        }
+        BEC.ocupado(form, true);
+        var peticion = id
+            ? BEC.api(BEC.url(BEC.cfg.api.direccion, id), { method: 'PATCH', body: datos })
+            : BEC.api(BEC.cfg.api.direcciones, { method: 'POST', body: datos });
+        peticion.then(function (res) {
+            BEC.ocupado(form, false);
+            if (!res.ok) { BEC.mensajeError(res); return; }
+            BEC.mensaje(id ? 'La dirección fue actualizada.' : 'La dirección fue guardada.', 'exito');
+            reiniciarForm();
+            cargar();
+        });
+    });
+
+    // Solo los clientes gestionan direcciones (el servidor también lo exige)
+    BEC.requiereSesion(['CLIENTE']).then(function (p) { if (p) { cargar(); } });
+})();
+</script>
+{% endblock %}

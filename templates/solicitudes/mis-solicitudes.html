@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Mis Solicitudes - BienestarEnCasa{% endblock %}
+
+{% block body %}
+<div class="container">
+    <h1>Mis Solicitudes y Reservas</h1>
+
+    <!-- Mensajes de sistema -->
+    <div id="mensajes" aria-live="polite"></div>
+
+    <!-- Lista de solicitudes -->
+    <div id="con-solicitudes" class="solicitudes-list" hidden>
+        <table class="solicitudes-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Servicio</th>
+                    <th>Proveedor</th>
+                    <th>Fecha Solicitada</th>
+                    <th>Hora</th>
+                    <th>Dirección</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="filas"></tbody>
+        </table>
+
+        <!-- Resumen de estado -->
+        <div class="resumen-estado">
+            <h3>Resumen</h3>
+            <ul id="resumen"></ul>
+        </div>
+    </div>
+
+    <!-- Mensaje cuando no hay solicitudes (HU-13) -->
+    <div id="sin-solicitudes" class="mensaje-sin-solicitudes" hidden>
+        <h2>No tienes solicitudes registradas</h2>
+        <p id="texto-sin-solicitudes">Para crear una solicitud, primero consulta el catálogo de servicios.</p>
+        <a href="{% url 'pagina-catalogo' %}" class="btn btn-primary">Ir al Catálogo de Servicios</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_body %}
+<script>
+(function () {
+    var h = BEC.h;
+
+    function cargar() {
+        BEC.api(BEC.cfg.api.solicitudes).then(function (res) {
+            if (!res.ok) { BEC.mensajeError(res); return; }
+            var solicitudes = BEC.lista(res.data);
+
+            // Cuando el cliente no tiene solicitudes la API responde con un "mensaje" propio
+            if (!solicitudes.length) {
+                if (res.data && res.data.mensaje) { document.getElementById('texto-sin-solicitudes').textContent = res.data.mensaje + ' Para crear una, consulta el catálogo de servicios.'; }
+                document.getElementById('sin-solicitudes').hidden = false;
+                return;
+            }
+            pintar(solicitudes);
+        });
+    }
+
+    function pintar(solicitudes) {
+        var filas = document.getElementById('filas');
+        BEC.clear(filas);
+        solicitudes.forEach(function (s) {
+            filas.appendChild(h('tr', null,
+                h('td', { text: s.id }),
+                h('td', { text: s.nombre_servicio_copia }),
+                h('td', { text: s.nombre_proveedor }),
+                h('td', { text: BEC.fecha(s.fecha_solicitada) }),
+                h('td', { text: BEC.hora(s.hora_solicitada) }),
+                h('td', { text: s.direccion_atencion }),
+                h('td', { class: 'estado-' + s.estado, text: BEC.ESTADOS_SOLICITUD[s.estado] || s.estado }),
+                h('td', { class: 'acciones' },
+                    h('a', { href: BEC.url(BEC.cfg.pages.solicitudDetalle, s.id), class: 'btn btn-sm', text: 'Ver Detalles' }))));
+        });
+
+        // Resumen calculado con los datos ya cargados
+        var resumen = document.getElementById('resumen');
+        BEC.clear(resumen);
+        resumen.appendChild(h('li', { text: 'Total de solicitudes: ' + solicitudes.length }));
+        Object.keys(BEC.ESTADOS_SOLICITUD).forEach(function (estado) {
+            var n = solicitudes.filter(function (s) { return s.estado === estado; }).length;
+            resumen.appendChild(h('li', { text: BEC.ESTADOS_SOLICITUD[estado] + 's: ' + n }));
+        });
+        document.getElementById('con-solicitudes').hidden = false;
+    }
+
+    BEC.requiereSesion(['CLIENTE']).then(function (p) { if (p) { cargar(); } });
+})();
+</script>
+{% endblock %}
