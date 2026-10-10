@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}Mi Perfil - BienestarEnCasa{% endblock %}
+
+{% block body %}
+<div class="container">
+    <h1>Mi Perfil</h1>
+
+    <div class="perfil-container">
+        <!-- Mensajes de sistema -->
+        <div id="mensajes" aria-live="polite"></div>
+
+        <!-- Información Personal -->
+        <div class="informacion-personal">
+            <h2>Datos Personales</h2>
+
+            <!-- Datos de solo lectura (no se pueden cambiar desde aquí) -->
+            <p><strong>Correo electrónico:</strong> <span id="perfil-email"></span></p>
+            <p><strong>Tipo de cuenta:</strong> <span id="perfil-rol"></span></p>
+            <p><strong>Miembro desde:</strong> <span id="perfil-creado"></span></p>
+
+            <form id="form-perfil" novalidate>
+                <div class="form-group">
+                    <label for="nombres">Nombres:</label>
+                    <input type="text" name="nombres" id="nombres" maxlength="150" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="apellidos">Apellidos:</label>
+                    <input type="text" name="apellidos" id="apellidos" maxlength="150" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="telefono">Teléfono:</label>
+                    <input type="tel" name="telefono" id="telefono" maxlength="20">
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" name="actualizar">Actualizar Información</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Opciones de menú (según el rol) -->
+        <div class="options-menu">
+            <div id="menu-cliente" hidden>
+                <a href="{% url 'pagina-direcciones' %}" class="btn">Mis Direcciones</a>
+                <a href="{% url 'pagina-mis-solicitudes' %}" class="btn">Mis Solicitudes</a>
+            </div>
+
+            <div id="menu-proveedor" hidden>
+                <a href="{% url 'pagina-panel-proveedor' %}" class="btn">Panel del Proveedor</a>
+                <a href="{% url 'pagina-perfil-proveedor' %}" class="btn">Gestionar Perfil Profesional</a>
+                <a href="{% url 'pagina-zonas' %}" class="btn">Mis Zonas de Atención</a>
+                <a href="{% url 'pagina-mis-servicios' %}" class="btn">Mis Servicios</a>
+            </div>
+
+            <button type="button" id="btn-salir" class="btn btn-secondary">Cerrar Sesión</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_body %}
+<script>
+(function () {
+    var form = document.getElementById('form-perfil');
+    var ROLES = { CLIENTE: 'Cliente', PROVEEDOR: 'Proveedor' };
+
+    function pintar(p) {
+        document.getElementById('perfil-email').textContent = p.email;
+        document.getElementById('perfil-rol').textContent = ROLES[p.rol] || p.rol;
+        document.getElementById('perfil-creado').textContent = BEC.fechaHora(p.creado_en);
+        form.elements.nombres.value = p.nombres || '';
+        form.elements.apellidos.value = p.apellidos || '';
+        form.elements.telefono.value = p.telefono || '';
+        document.getElementById('menu-cliente').hidden = p.rol !== 'CLIENTE';
+        document.getElementById('menu-proveedor').hidden = p.rol !== 'PROVEEDOR';
+    }
+
+    document.getElementById('btn-salir').addEventListener('click', BEC.cerrarSesion);
+
+    BEC.requiereSesion().then(function (p) {
+        if (!p) { return; }
+        // Se pide el perfil fresco al servidor (no el guardado en el navegador)
+        BEC.api(BEC.cfg.api.miPerfil).then(function (res) {
+            if (res.ok) { pintar(res.data); } else { BEC.mensajeError(res); }
+        });
+    });
+
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var datos = {
+            nombres: form.elements.nombres.value.trim(),
+            apellidos: form.elements.apellidos.value.trim(),
+            telefono: form.elements.telefono.value.trim()
+        };
+        if (!datos.nombres || !datos.apellidos) {
+            BEC.mensaje('Los nombres y apellidos no pueden estar vacíos.', 'error');
+            return;
+        }
+        BEC.ocupado(form, true);
+        BEC.api(BEC.cfg.api.miPerfil, { method: 'PATCH', body: datos }).then(function (res) {
+            BEC.ocupado(form, false);
+            if (!res.ok) { BEC.mensajeError(res); return; }
+            // La respuesta del PATCH trae solo los campos editados; se refresca el perfil guardado
+            BEC.cargarPerfil(true).then(function (p) { if (p) { pintar(p); } });
+            BEC.mensaje('Tu información fue actualizada correctamente.', 'exito');
+        });
+    });
+})();
+</script>
+{% endblock %}

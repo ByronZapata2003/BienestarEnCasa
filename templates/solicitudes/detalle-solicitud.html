@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Detalle de la Solicitud - BienestarEnCasa{% endblock %}
+
+{% block body %}
+<div class="container">
+    <h1 id="titulo">Detalle de la Solicitud</h1>
+
+    <!-- Mensajes de sistema -->
+    <div id="mensajes" aria-live="polite"></div>
+
+    <div id="detalle" class="solicitud-detalle" hidden>
+        <h2>Servicio</h2>
+        <p><strong>Servicio:</strong> <span id="d-servicio"></span></p>
+        <p><strong>Proveedor:</strong> <span id="d-proveedor"></span></p>
+        <p><strong>Precio acordado:</strong> <span id="d-precio"></span></p>
+        <p><strong>Duración:</strong> <span id="d-duracion"></span></p>
+
+        <h2>Reserva</h2>
+        <p><strong>Estado:</strong> <span id="d-estado"></span></p>
+        <p><strong>Fecha:</strong> <span id="d-fecha"></span></p>
+        <p><strong>Hora:</strong> <span id="d-hora"></span></p>
+
+        <h2>Lugar de atención</h2>
+        <p><strong>Dirección:</strong> <span id="d-direccion"></span></p>
+        <p><strong>Barrio/Sector:</strong> <span id="d-barrio"></span></p>
+        <p id="p-complementaria" hidden><strong>Información complementaria:</strong> <span id="d-complementaria"></span></p>
+        <p id="p-observaciones" hidden><strong>Observaciones:</strong> <span id="d-observaciones"></span></p>
+        <p id="p-motivo" hidden><strong>Motivo de rechazo o cancelación:</strong> <span id="d-motivo"></span></p>
+
+        <p><small>Creada el <span id="d-creada"></span> · Última actualización: <span id="d-actualizada"></span></small></p>
+    </div>
+
+    <div class="options-menu">
+        <a href="#" id="ver-servicio" class="btn" hidden>Ver el Servicio</a>
+        <a href="{% url 'pagina-mis-solicitudes' %}" class="btn">Volver a Mis Solicitudes</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_body %}
+<script>
+(function () {
+    var ID = {{ pk }};
+
+    function texto(id, valor) { document.getElementById(id).textContent = valor; }
+    function opcional(idP, idSpan, valor) {
+        if (valor) { texto(idSpan, valor); document.getElementById(idP).hidden = false; }
+    }
+
+    BEC.requiereSesion(['CLIENTE']).then(function (p) {
+        if (!p) { return; }
+        BEC.api(BEC.url(BEC.cfg.api.solicitud, ID)).then(function (res) {
+            if (res.status === 404) { BEC.mensaje('La solicitud no existe o no te pertenece.', 'error'); return; }
+            if (!res.ok) { BEC.mensajeError(res); return; }
+            var s = res.data;
+
+            document.getElementById('titulo').textContent = 'Solicitud #' + s.id;
+            // Estos valores son una copia fija de las condiciones del servicio al momento de solicitarlo
+            texto('d-servicio', s.nombre_servicio_copia);
+            texto('d-proveedor', s.nombre_proveedor);
+            texto('d-precio', BEC.dinero(s.precio_copia));
+            texto('d-duracion', s.duracion_minutos_copia + ' minutos');
+            texto('d-estado', BEC.ESTADOS_SOLICITUD[s.estado] || s.estado);
+            texto('d-fecha', BEC.fecha(s.fecha_solicitada));
+            texto('d-hora', BEC.hora(s.hora_solicitada));
+            texto('d-direccion', s.direccion_atencion);
+            texto('d-barrio', s.barrio_sector);
+            opcional('p-complementaria', 'd-complementaria', s.informacion_complementaria);
+            opcional('p-observaciones', 'd-observaciones', s.observaciones);
+            opcional('p-motivo', 'd-motivo', s.motivo_rechazo_cancelacion);
+            texto('d-creada', BEC.fechaHora(s.creado_en));
+            texto('d-actualizada', BEC.fechaHora(s.actualizado_en));
+
+            // El servicio puede haber sido eliminado (la solicitud conserva su copia)
+            if (s.servicio) {
+                var a = document.getElementById('ver-servicio');
+                a.href = BEC.url(BEC.cfg.pages.servicio, s.servicio);
+                a.hidden = false;
+            }
+            document.getElementById('detalle').hidden = false;
+        });
+    });
+})();
+</script>
+{% endblock %}
