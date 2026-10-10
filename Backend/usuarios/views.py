@@ -8,7 +8,7 @@ from .models import Direccion, PerfilProveedor, PerfilUsuario, ZonaAtencion
 from catalogo.models import Servicio
 from django.db.models import Prefetch
 from django.http import Http404
-
+from django.shortcuts import render
 from .serializers import ProveedorPublicoSerializer, ZonaAtencionSerializer, PerfilProveedorSerializer, ActualizarPerfilSerializer, CerrarSesionSerializer, DireccionSerializer, InicioSesionSerializer, PerfilSerializer, RegistroSerializer
 
 from catalogo.models import Servicio
