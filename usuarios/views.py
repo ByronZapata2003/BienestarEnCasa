@@ -35,7 +35,7 @@ class CerrarSesionView(APIView):
         serializer = CerrarSesionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        #cierra la session e invoca al serializer para que crea
+        #cierra la session e invoca al serializer para lo cree
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
