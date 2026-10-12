@@ -22,17 +22,12 @@ from django.contrib.auth import views as auth_views
 
 urlpatterns = [ #aqui definimos que se solicita y luego las urls de cada app pa que sepa que tenga que hacer y no este esa cantidad de urls aqui, sino que se mande a cada app y que haga lo que tenga que hacer
     path('admin/', admin.site.urls),
-    path('api/auth/', include('usuarios.urls')),
-    path('api/usuarios/', include('usuarios.api_urls')), # manda lo de usuarios no proveedores
-    path('api/proveedores/', include('usuarios.proveedores_urls')), #manda pa proveedores
+    path('api/auth/', include('usuarios.urls.urls')),
+    path('api/usuarios/', include('usuarios.urls.api_urls')), # manda lo de usuarios no proveedores
+    path('api/proveedores/', include('usuarios.urls.proveedores_urls')), #manda pa proveedores
     path('api/catalogo/', include('catalogo.urls')), #manda el render para el calalogo
     path('api/solicitudes/', include('solicitudes.urls')),
-    path('recuperar-password/', 
-         auth_views.PasswordResetView.as_view(
-             template_name='users/password_reset.html',
-             email_template_name='users/password_reset_email.html',
-             subject_template_name='users/password_reset_subject.txt'
-         ), #para recuperar el password lo genera aqui mientras envia
+    path('recuperar-password/', auth_views.PasswordResetView.as_view(template_name='users/password_reset.html', email_template_name='users/password_reset_email.html',       subject_template_name='users/password_reset_subject.txt'), #para recuperar el password lo genera aqui mientras envia
          name='password_reset'),
     path('recuperar-password/enviado/', #deespues que genera el link
          auth_views.PasswordResetDoneView.as_view(
@@ -49,4 +44,5 @@ urlpatterns = [ #aqui definimos que se solicita y luego las urls de cada app pa 
              template_name='users/password_reset_complete.html'
          ), 
          name='password_reset_complete'),
+    path('', include('BienestarEnCasa.paginas_urls')), #las paginas HTML del frontend, va de ultimo para no tapar ninguna ruta de arriba
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) #esto es para todo el proyecto, aqui permite y en lo que se cambio en settings que se pueda carga lo que sea de media
