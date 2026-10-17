@@ -61,8 +61,9 @@
     <!--
         ============================================================
         Cliente JS compartido (window.BEC)
-        La API usa JWT: el token se guarda en localStorage y se envía
-        en la cabecera Authorization. Todas las páginas usan estas
+        La API usa JWT en cookies httponly: el navegador las manda solo
+        y el JS nunca ve los tokens. Las peticiones que modifican datos
+        llevan el token CSRF en la cabecera X-CSRFToken. Todas las páginas usan estas
         funciones, así no se repite lógica de autenticación.
         ============================================================
     -->
@@ -72,6 +73,7 @@
 
         // ---------- Rutas (generadas por Django para no escribirlas a mano) ----------
         var CFG = {
+            csrf: "{{ csrf_token }}",
             api: {
                 registro: "{% url 'registro' %}",
                 iniciarSesion: "{% url 'iniciar-sesion' %}",
@@ -108,13 +110,13 @@
             }
         };
 
-        var K = { access: 'bec_access', refresh: 'bec_refresh', perfil: 'bec_perfil', flash: 'bec_flash' };
+        var K = { perfil: 'bec_perfil', flash: 'bec_flash' };
 
         // ---------- Almacenamiento (con try/catch por si el navegador lo bloquea) ----------
         function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
         function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* sin almacenamiento */ } }
         function lsDel(k) { try { localStorage.removeItem(k); } catch (e) { /* nada */ } }
-        function clearSession() { lsDel(K.access); lsDel(K.refresh); lsDel(K.perfil); }
+        function clearSession() { lsDel(K.perfil); }
 
         // Reemplaza el "0" de una ruta plantilla por un id real: /algo/0/ -> /algo/5/
         function url(tpl, id) { return tpl.replace('/0/', '/' + encodeURIComponent(id) + '/'); }
@@ -198,23 +200,13 @@
 
         // ---------- Peticiones a la API ----------
         var refrescando = null;
-        function renovarToken() {
-            var r = lsGet(K.refresh);
-            if (!r) { return Promise.resolve(false); }
+        function renovarToken() { // el refresh viaja en su cookie; el servidor responde con una cookie access nueva
             if (!refrescando) {
                 refrescando = fetch(CFG.api.renovar, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ refresh: r })
-                }).then(function (res) { return res.ok ? res.json() : null; })
-                  .then(function (d) {
-                      if (d && d.access) {
-                          lsSet(K.access, d.access);
-                          if (d.refresh) { lsSet(K.refresh, d.refresh); }
-                          return true;
-                      }
-                      return false;
-                  })
+                    headers: { 'X-CSRFToken': CFG.csrf },
+                    credentials: 'same-origin'
+                }).then(function (res) { return res.ok; })
                   .catch(function () { return false; })
                   .then(function (ok) { refrescando = null; return ok; });
             }
@@ -241,10 +233,11 @@
             function enviar() {
                 var headers = { 'Accept': 'application/json' };
                 if (opts.body !== undefined) { headers['Content-Type'] = 'application/json'; }
-                if (conAuth && lsGet(K.access)) { headers['Authorization'] = 'Bearer ' + lsGet(K.access); }
+                if (opts.method && opts.method !== 'GET') { headers['X-CSRFToken'] = CFG.csrf; }
                 return fetch(u, {
                     method: opts.method || 'GET',
                     headers: headers,
+                    credentials: 'same-origin',
                     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
                 });
             }
@@ -286,7 +279,6 @@
           Sin parámetro basta con tener sesión (cualquier rol).
         */
         function requiereSesion(roles) {
-            if (!lsGet(K.access)) { irALogin(); return Promise.resolve(null); }
             return cargarPerfil(false).then(function (p) {
                 if (!p) { return null; }
                 if (roles && roles.indexOf(p.rol) === -1) {
@@ -297,15 +289,13 @@
             });
         }
         function cerrarSesion() {
-            var r = lsGet(K.refresh);
             function fin() { clearSession(); window.location.replace(CFG.pages.login); }
-            if (!r) { fin(); return; }
-            request(CFG.api.cerrarSesion, { method: 'POST', body: { refresh: r } }).then(fin, fin);
+            request(CFG.api.cerrarSesion, { method: 'POST', auth: false }).then(fin, fin);
         }
 
         // ---------- Navegación según sesión ----------
         function pintarNav() {
-            var p = lsGet(K.access) ? perfilCache() : null;
+            var p = perfilCache();
             var items = document.querySelectorAll('[data-solo]');
             for (var i = 0; i < items.length; i++) {
                 var d = items[i].getAttribute('data-solo');
@@ -349,8 +339,7 @@
             mensaje: mensaje, mensajeError: mensajeError, errores: errores, flash: flash,
             requiereSesion: requiereSesion, cargarPerfil: cargarPerfil, perfilCache: perfilCache,
             inicioPorRol: inicioPorRol, cerrarSesion: cerrarSesion, pintarNav: pintarNav,
-            guardarSesion: function (tokens) { lsSet(K.access, tokens.access); lsSet(K.refresh, tokens.refresh); },
-            haySesion: function () { return !!lsGet(K.access); },
+            haySesion: function () { return !!perfilCache(); }, // solo indica si hay perfil guardado; la sesion real la valida el servidor
             dinero: dinero, fecha: fecha, hora: hora, fechaHora: fechaHora, lista: lista,
             ESTADOS_SOLICITUD: ESTADOS_SOLICITUD, ESTADOS_SERVICIO: ESTADOS_SERVICIO, ocupado: ocupado
         };

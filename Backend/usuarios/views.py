@@ -1,7 +1,11 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.settings import api_settings as jwt_settings
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from django.conf import settings
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from .models import Direccion, PerfilProveedor, PerfilUsuario, ZonaAtencion
 
@@ -9,7 +13,7 @@ from catalogo.models import Servicio
 from django.db.models import Prefetch
 from django.http import Http404
 from django.shortcuts import render
-from .serializers import ProveedorPublicoSerializer, ZonaAtencionSerializer, PerfilProveedorSerializer, ActualizarPerfilSerializer, CerrarSesionSerializer, DireccionSerializer, InicioSesionSerializer, PerfilSerializer, RegistroSerializer
+from .serializers import ProveedorPublicoSerializer, ZonaAtencionSerializer, PerfilProveedorSerializer, ActualizarPerfilSerializer, DireccionSerializer, InicioSesionSerializer, PerfilSerializer, RegistroSerializer
 
 from catalogo.models import Servicio
 from catalogo.serializers import ServicioSerializer
@@ -25,18 +29,46 @@ class RegistroView(generics.CreateAPIView): #para crear el usuario despues de re
         return Response(PerfilSerializer(perfil).data, status=status.HTTP_201_CREATED)
 
 
+def poner_cookies(response): #saca los tokens del body y los manda como cookies httponly, asi el JS nunca los ve
+    for nombre, vida in (('access', jwt_settings.ACCESS_TOKEN_LIFETIME), ('refresh', jwt_settings.REFRESH_TOKEN_LIFETIME)):
+        if nombre in response.data:
+            response.set_cookie(nombre, response.data.pop(nombre), max_age=int(vida.total_seconds()),
+                                httponly=True, secure=not settings.DEBUG, samesite='Lax')
+    return response
+
+
 class InicioSesionView(TokenObtainPairView):
     permission_classes = (permissions.AllowAny,)
     serializer_class = InicioSesionSerializer
      #inicia la seccion y el serializer
 
+    def post(self, request, *args, **kwargs):
+        return poner_cookies(super().post(request, *args, **kwargs))
+
+
+class RenovarTokenView(TokenRefreshView):
+    def get_serializer(self, *args, **kwargs): #el refresh sale de la cookie, no del body
+        kwargs['data'] = {'refresh': self.request.COOKIES.get('refresh', '')}
+        return super().get_serializer(*args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        return poner_cookies(super().post(request, *args, **kwargs))
+
+
 class CerrarSesionView(APIView):
+    permission_classes = (permissions.AllowAny,) #aunque el access ya haya vencido se deben poder borrar las cookies
+
     def post(self, request):
-        serializer = CerrarSesionSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        #cierra la session e invoca al serializer para lo cree
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        refresh = request.COOKIES.get('refresh')
+        if refresh:
+            try:
+                RefreshToken(refresh).blacklist() #lista negra pa que nadie lo use mas
+            except TokenError:
+                pass #ya vencido o invalido, igual se borran las cookies
+        response = Response(status=status.HTTP_204_NO_CONTENT)
+        response.delete_cookie('access', samesite='Lax')
+        response.delete_cookie('refresh', samesite='Lax')
+        return response
 
 
 class MiPerfilView(generics.RetrieveUpdateAPIView):

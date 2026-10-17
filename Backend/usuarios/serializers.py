@@ -4,7 +4,6 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from rest_framework_simplejwt.tokens import RefreshToken
 
 from catalogo.serializers import ServicioSerializer
 
@@ -109,15 +108,6 @@ class InicioSesionSerializer(TokenObtainPairSerializer): #viene de su view, vali
         refresh = self.get_token(usuario)
         return {'refresh': str(refresh), 'access': str(refresh.access_token)} #tokens
 
-
-class CerrarSesionSerializer(serializers.Serializer):
-    refresh = serializers.CharField()
-
-    def save(self, **kwargs):
-        try:
-            RefreshToken(self.validated_data['refresh']).blacklist()#aqui manda el refresh y lo manda a lista negra pa que nadie lo use mas 
-        except Exception as error:
-            raise serializers.ValidationError({'refresh': 'El token de actualización no es válido.'}) from error
 
 class DireccionSerializer(serializers.ModelSerializer):
     class Meta:
