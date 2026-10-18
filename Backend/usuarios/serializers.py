@@ -2,6 +2,7 @@ from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.db import transaction
 from rest_framework import serializers
+import uuid
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
@@ -95,6 +96,12 @@ class ActualizarPerfilSerializer(serializers.ModelSerializer): #lo mismo de arri
 class InicioSesionSerializer(TokenObtainPairSerializer): #viene de su view, valida que el email y la contraseña sean correctos y genera el token de acceso y el de refresco
     username_field = 'email'
 
+    @classmethod
+    def get_token(cls, user): #cada login lleva un sid nuevo, el access lo hereda del refresh
+        token = super().get_token(user)
+        token['sid'] = str(uuid.uuid4())
+        return token
+
     def validate(self, attrs):
         try:
             usuario = Usuario.objects.get(email__iexact=attrs['email'].lower())
@@ -159,3 +166,4 @@ class ProveedorPublicoSerializer(serializers.ModelSerializer):
             'zonas_atencion',
             'servicios',
         )
+
