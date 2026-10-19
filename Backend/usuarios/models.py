@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.db import models
-
+import uuid
 
 class PerfilUsuario(models.Model):
     class Rol(models.TextChoices):
@@ -78,3 +78,17 @@ class ZonaAtencion(models.Model):
 
     def __str__(self):
         return f'{self.barrio_sector}, {self.ciudad}'
+
+class SesionActiva(models.Model):
+    usuario = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sesion_activa'
+    )
+    session_id = models.UUIDField(default=uuid.uuid4, unique=True)
+    refresh_jti = models.CharField(max_length=255)
+    dispositivo = models.CharField(max_length=255, blank=True)
+    ip = models.GenericIPAddressField(null=True, blank=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f'Sesión de {self.usuario}'
+    

@@ -81,7 +81,9 @@ class FlujoCompletoURLsTests(APITestCase):
         super().tearDownClass()
 
     def llamar(self, actor, metodo, url, esperado, token=None, **kwargs):
-        self.client.credentials(**({'HTTP_AUTHORIZATION': f'Bearer {token}'} if token else {}))
+        self.client.cookies.clear()
+        if token:
+            self.client.cookies['access'] = token  # el access viaja en cookie httponly
         respuesta = getattr(self.client, metodo)(url, **kwargs)
         self.resultados.append((actor, metodo.upper(), url, esperado, respuesta.status_code))
         self.assertEqual(respuesta.status_code, esperado, getattr(respuesta, 'data', None))
@@ -95,7 +97,7 @@ class FlujoCompletoURLsTests(APITestCase):
         self.llamar(nombre, 'post', '/api/auth/registro/', 201, data=datos, format='json')
         login = self.llamar(nombre, 'post', '/api/auth/iniciar-sesion/', 200,
                             data={'email': email, 'password': 'ClaveSegura123!'}, format='json')
-        return login.data['access']
+        return login.cookies['access'].value
 
     def test_flujo_proveedor_cliente_y_anonimo(self):
         # Proveedor dueño arma su catálogo

@@ -2,9 +2,9 @@ from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.db import transaction
 from rest_framework import serializers
+import uuid
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from rest_framework_simplejwt.tokens import RefreshToken
 
 from catalogo.serializers import ServicioSerializer
 
@@ -96,6 +96,12 @@ class ActualizarPerfilSerializer(serializers.ModelSerializer): #lo mismo de arri
 class InicioSesionSerializer(TokenObtainPairSerializer): #viene de su view, valida que el email y la contraseña sean correctos y genera el token de acceso y el de refresco
     username_field = 'email'
 
+    @classmethod
+    def get_token(cls, user): #cada login lleva un sid nuevo, el access lo hereda del refresh
+        token = super().get_token(user)
+        token['sid'] = str(uuid.uuid4())
+        return token
+
     def validate(self, attrs):
         try:
             usuario = Usuario.objects.get(email__iexact=attrs['email'].lower())
@@ -109,15 +115,6 @@ class InicioSesionSerializer(TokenObtainPairSerializer): #viene de su view, vali
         refresh = self.get_token(usuario)
         return {'refresh': str(refresh), 'access': str(refresh.access_token)} #tokens
 
-
-class CerrarSesionSerializer(serializers.Serializer):
-    refresh = serializers.CharField()
-
-    def save(self, **kwargs):
-        try:
-            RefreshToken(self.validated_data['refresh']).blacklist()#aqui manda el refresh y lo manda a lista negra pa que nadie lo use mas 
-        except Exception as error:
-            raise serializers.ValidationError({'refresh': 'El token de actualización no es válido.'}) from error
 
 class DireccionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -169,3 +166,4 @@ class ProveedorPublicoSerializer(serializers.ModelSerializer):
             'zonas_atencion',
             'servicios',
         )
+

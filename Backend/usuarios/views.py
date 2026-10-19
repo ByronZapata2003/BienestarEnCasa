@@ -1,21 +1,28 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
+from rest_framework_simplejwt.settings import api_settings as jwt_settings
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from django.conf import settings
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
-from .models import Direccion, PerfilProveedor, PerfilUsuario, ZonaAtencion
+from .models import Direccion, PerfilProveedor, PerfilUsuario, ZonaAtencion, SesionActiva
+
 
 from catalogo.models import Servicio
 from django.db.models import Prefetch
 from django.http import Http404
 from django.shortcuts import render
-from .serializers import ProveedorPublicoSerializer, ZonaAtencionSerializer, PerfilProveedorSerializer, ActualizarPerfilSerializer, CerrarSesionSerializer, DireccionSerializer, InicioSesionSerializer, PerfilSerializer, RegistroSerializer
+from .serializers import ProveedorPublicoSerializer, ZonaAtencionSerializer, PerfilProveedorSerializer, ActualizarPerfilSerializer, DireccionSerializer, InicioSesionSerializer, PerfilSerializer, RegistroSerializer
 
 from catalogo.models import Servicio
 from catalogo.serializers import ServicioSerializer
 
 class RegistroView(generics.CreateAPIView): #para crear el usuario despues de registrarse
     permission_classes = (permissions.AllowAny,)
+    authentication_classes = ()
     serializer_class = RegistroSerializer #llama al serializer para que haga la validacion de los datos y cree el usuario y el perfil
 
     def create(self, request, *args, **kwargs): #lo crea
@@ -25,18 +32,70 @@ class RegistroView(generics.CreateAPIView): #para crear el usuario despues de re
         return Response(PerfilSerializer(perfil).data, status=status.HTTP_201_CREATED)
 
 
+def poner_cookies(response): #saca los tokens del body y los manda como cookies httponly, asi el JS nunca los ve
+    for nombre, vida in (('access', jwt_settings.ACCESS_TOKEN_LIFETIME), ('refresh', jwt_settings.REFRESH_TOKEN_LIFETIME)):
+        if nombre in response.data:
+            response.set_cookie(nombre, response.data.pop(nombre), max_age=int(vida.total_seconds()),
+                                httponly=True, secure=not settings.DEBUG, samesite='Lax')
+    return response
+
+
 class InicioSesionView(TokenObtainPairView):
     permission_classes = (permissions.AllowAny,)
+    authentication_classes = () #una cookie vieja o de otra sesion no debe impedir volver a entrar
     serializer_class = InicioSesionSerializer
      #inicia la seccion y el serializer
 
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        refresh = RefreshToken(response.data['refresh'])
+        usuario_id = refresh[jwt_settings.USER_ID_CLAIM]
+
+        # invalida cualquier refresh token anterior de este usuario
+        for t in OutstandingToken.objects.filter(user_id=usuario_id).exclude(jti=refresh['jti']):
+            BlacklistedToken.objects.get_or_create(token=t)
+
+        # registra esta como la sesion vigente
+        SesionActiva.objects.update_or_create(
+            usuario_id=usuario_id,
+            defaults={
+                'session_id': refresh['sid'],
+                'refresh_jti': refresh['jti'],
+                'dispositivo': request.META.get('HTTP_USER_AGENT', '')[:255],
+                'ip': request.META.get('REMOTE_ADDR'),
+            }
+        )
+        return poner_cookies(response)
+
+
+class RenovarTokenView(TokenRefreshView):
+    authentication_classes = ()
+    def get_serializer(self, *args, **kwargs): #el refresh sale de la cookie, no del body
+        kwargs['data'] = {'refresh': self.request.COOKIES.get('refresh', '')}
+        return super().get_serializer(*args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        return poner_cookies(super().post(request, *args, **kwargs))
+
+
 class CerrarSesionView(APIView):
+    permission_classes = (permissions.AllowAny,) #aunque el access ya haya vencido se deben poder borrar las cookies
+    authentication_classes = () #la sesion se saca del refresh, asi una sesion reemplazada tambien puede borrar sus cookies
+
     def post(self, request):
-        serializer = CerrarSesionSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        #cierra la session e invoca al serializer para lo cree
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        refresh = request.COOKIES.get('refresh')
+        if refresh:
+            try:
+                token = RefreshToken(refresh)
+                #solo borra la sesion si es la vigente, no la de otro dispositivo
+                SesionActiva.objects.filter(usuario_id=token[jwt_settings.USER_ID_CLAIM], session_id=token.get('sid')).delete()
+                token.blacklist() #lista negra pa que nadie lo use mas
+            except TokenError:
+                pass #ya vencido o invalido, igual se borran las cookies
+        response = Response(status=status.HTTP_204_NO_CONTENT)
+        response.delete_cookie('access', samesite='Lax')
+        response.delete_cookie('refresh', samesite='Lax')
+        return response
 
 
 class MiPerfilView(generics.RetrieveUpdateAPIView):

@@ -70,7 +70,6 @@
         BEC.api(BEC.cfg.api.iniciarSesion, { method: 'POST', auth: false, body: { email: email, password: password } })
             .then(function (res) {
                 if (!res.ok) { BEC.mensajeError(res); BEC.ocupado(form, false); return null; }
-                BEC.guardarSesion(res.data);
                 return BEC.cargarPerfil(true);
             })
             .then(function (perfil) {
