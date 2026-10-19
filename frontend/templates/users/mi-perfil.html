@@ -1,113 +1,227 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 
-{% block title %}Mi Perfil - BienestarEnCasa{% endblock %}
+{% block title %}Mi Perfil - Bienestar en Casa{% endblock %}
 
-{% block body %}
-<div class="container">
-    <h1>Mi Perfil</h1>
-
-    <div class="perfil-container">
-        <!-- Mensajes de sistema -->
-        <div id="mensajes" aria-live="polite"></div>
-
-        <!-- Información Personal -->
-        <div class="informacion-personal">
-            <h2>Datos Personales</h2>
-
-            <!-- Datos de solo lectura (no se pueden cambiar desde aquí) -->
-            <p><strong>Correo electrónico:</strong> <span id="perfil-email"></span></p>
-            <p><strong>Tipo de cuenta:</strong> <span id="perfil-rol"></span></p>
-            <p><strong>Miembro desde:</strong> <span id="perfil-creado"></span></p>
-
-            <form id="form-perfil" novalidate>
-                <div class="form-group">
-                    <label for="nombres">Nombres:</label>
-                    <input type="text" name="nombres" id="nombres" maxlength="150" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="apellidos">Apellidos:</label>
-                    <input type="text" name="apellidos" id="apellidos" maxlength="150" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="telefono">Teléfono:</label>
-                    <input type="tel" name="telefono" id="telefono" maxlength="20">
-                </div>
-
-                <div class="form-actions">
-                    <button type="submit" name="actualizar">Actualizar Información</button>
-                </div>
-            </form>
-        </div>
-
-        <!-- Opciones de menú (según el rol) -->
-        <div class="options-menu">
-            <div id="menu-cliente" hidden>
-                <a href="{% url 'pagina-direcciones' %}" class="btn">Mis Direcciones</a>
-                <a href="{% url 'pagina-mis-solicitudes' %}" class="btn">Mis Solicitudes</a>
-            </div>
-
-            <div id="menu-proveedor" hidden>
-                <a href="{% url 'pagina-panel-proveedor' %}" class="btn">Panel del Proveedor</a>
-                <a href="{% url 'pagina-perfil-proveedor' %}" class="btn">Gestionar Perfil Profesional</a>
-                <a href="{% url 'pagina-zonas' %}" class="btn">Mis Zonas de Atención</a>
-                <a href="{% url 'pagina-mis-servicios' %}" class="btn">Mis Servicios</a>
-            </div>
-
-            <button type="button" id="btn-salir" class="btn btn-secondary">Cerrar Sesión</button>
-        </div>
-    </div>
-</div>
+{% block header_nav %}
+<!-- Sobrescribe la barra superior garantizando que la navegación del cliente aparezca completa siempre -->
+<ul class="nav-list">
+    <li><a href="{% url 'pagina-catalogo' %}" class="nav-link">Catálogo</a></li>
+    <li><a href="{% url 'pagina-mis-solicitudes' %}" class="nav-link">Mis Solicitudes</a></li>
+    <li><a href="{% url 'pagina-direcciones' %}" class="nav-link">Mis Direcciones</a></li>
+    <li><a href="{% url 'pagina-perfil' %}" class="nav-link">Mi Perfil</a></li>
+    <li><button type="button" id="btn-cerrar-sesion" class="btn-nav-logout">Cerrar Sesión</button></li>
+</ul>
 {% endblock %}
 
-{% block extra_body %}
+{% block extra_head %}
+<style>
+  .profile-wrapper {
+    background-color: #f8fafc;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 1.5rem 1rem;
+    font-family: system-ui, -apple-system, sans-serif;
+    box-sizing: border-box;
+  }
+
+  .profile-container {
+    max-width: 60rem;
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  .change-profile-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #64748b;
+    font-size: 0.95rem;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.2s ease;
+  }
+
+  .change-profile-link:hover {
+    color: #1a68ff;
+  }
+
+  .profile-banner-card {
+    background-color: #ffffff;
+    border-radius: 1.25rem;
+    border: 1px solid #e2e8f0;
+    padding: 1.75rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    margin-bottom: 1.25rem;
+  }
+
+  .profile-avatar-box {
+    width: 4.25rem;
+    height: 4.25rem;
+    background-color: #dbeafe;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .profile-badge-text {
+    color: #2563eb;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: block;
+    margin-bottom: 0.25rem;
+  }
+
+  .profile-title {
+    font-size: 1.85rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 0.25rem 0;
+  }
+
+  .profile-subtitle {
+    color: #64748b;
+    font-size: 0.95rem;
+    margin: 0;
+  }
+
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.25rem;
+  }
+
+  .action-card {
+    text-decoration: none;
+    display: block;
+    background-color: #ffffff;
+    border-radius: 1.25rem;
+    border: 1px solid #e2e8f0;
+    padding: 1.75rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+
+  .action-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.04);
+    border-color: #93c5fd;
+  }
+
+  .action-icon-box {
+    width: 2.75rem;
+    height: 2.75rem;
+    border: 2px solid #2563eb;
+    border-radius: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+  }
+
+  .action-card-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0 0 0.4rem 0;
+  }
+
+  .action-card-desc {
+    color: #64748b;
+    font-size: 0.875rem;
+    margin: 0;
+  }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="profile-wrapper">
+  <div class="profile-container">
+    
+    <!-- Enlace Cambiar Perfil -->
+    <div style="margin-bottom: 1.25rem;">
+      <a href="{% url 'pagina-login' %}" class="change-profile-link">
+        <svg style="width: 1.25rem; height: 1.25rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+        </svg>
+        Cambiar perfil
+      </a>
+    </div>
+
+    <!-- Banner Mi Cuenta -->
+    <div class="profile-banner-card">
+      <div class="profile-avatar-box">
+        <svg style="width: 2.3rem; height: 2.3rem; color: #2563eb;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+      </div>
+      <div>
+        <span class="profile-badge-text" id="perfil-rol-text">PERFIL CLIENTE</span>
+        <h1 class="profile-title" id="perfil-nombre-text">Mi cuenta</h1>
+        <p class="profile-subtitle">Gestiona tus citas y revisa el estado de tus solicitudes</p>
+      </div>
+    </div>
+
+    <!-- Tarjetas principales -->
+    <div class="cards-grid">
+      
+      <!-- Solicitar servicio -->
+      <a href="{% url 'pagina-catalogo' %}" class="action-card">
+        <div class="action-icon-box">
+          <svg style="width: 1.4rem; height: 1.4rem; color: #2563eb;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+          </svg>
+        </div>
+        <h2 class="action-card-title">Solicitar servicio</h2>
+        <p class="action-card-desc">Agenda una nueva cita de salud en casa</p>
+      </a>
+
+      <!-- Mis solicitudes -->
+      <a href="{% url 'pagina-mis-solicitudes' %}" class="action-card">
+        <div class="action-icon-box">
+          <svg style="width: 1.4rem; height: 1.4rem; color: #2563eb;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+        </div>
+        <h2 class="action-card-title">Mis solicitudes</h2>
+        <p class="action-card-desc">Revisa el estado de tus citas y reportes</p>
+      </a>
+
+    </div>
+  </div>
+</div>
+
 <script>
-(function () {
-    var form = document.getElementById('form-perfil');
-    var ROLES = { CLIENTE: 'Cliente', PROVEEDOR: 'Proveedor' };
-
-    function pintar(p) {
-        document.getElementById('perfil-email').textContent = p.email;
-        document.getElementById('perfil-rol').textContent = ROLES[p.rol] || p.rol;
-        document.getElementById('perfil-creado').textContent = BEC.fechaHora(p.creado_en);
-        form.elements.nombres.value = p.nombres || '';
-        form.elements.apellidos.value = p.apellidos || '';
-        form.elements.telefono.value = p.telefono || '';
-        document.getElementById('menu-cliente').hidden = p.rol !== 'CLIENTE';
-        document.getElementById('menu-proveedor').hidden = p.rol !== 'PROVEEDOR';
-    }
-
-    document.getElementById('btn-salir').addEventListener('click', BEC.cerrarSesion);
-
-    BEC.requiereSesion().then(function (p) {
-        if (!p) { return; }
-        // Se pide el perfil fresco al servidor (no el guardado en el navegador)
-        BEC.api(BEC.cfg.api.miPerfil).then(function (res) {
-            if (res.ok) { pintar(res.data); } else { BEC.mensajeError(res); }
-        });
-    });
-
-    form.addEventListener('submit', function (e) {
-        e.preventDefault();
-        var datos = {
-            nombres: form.elements.nombres.value.trim(),
-            apellidos: form.elements.apellidos.value.trim(),
-            telefono: form.elements.telefono.value.trim()
-        };
-        if (!datos.nombres || !datos.apellidos) {
-            BEC.mensaje('Los nombres y apellidos no pueden estar vacíos.', 'error');
-            return;
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.BEC) {
+        // Asigna la acción al botón de cerrar sesión
+        var btnLogout = document.getElementById('btn-cerrar-sesion');
+        if (btnLogout) {
+            btnLogout.addEventListener('click', function() {
+                if (window.BEC.cerrarSesion) window.BEC.cerrarSesion();
+            });
         }
-        BEC.ocupado(form, true);
-        BEC.api(BEC.cfg.api.miPerfil, { method: 'PATCH', body: datos }).then(function (res) {
-            BEC.ocupado(form, false);
-            if (!res.ok) { BEC.mensajeError(res); return; }
-            // La respuesta del PATCH trae solo los campos editados; se refresca el perfil guardado
-            BEC.cargarPerfil(true).then(function (p) { if (p) { pintar(p); } });
-            BEC.mensaje('Tu información fue actualizada correctamente.', 'exito');
-        });
-    });
-})();
+
+        // Carga la información del usuario en el banner
+        if (window.BEC.cargarPerfil) {
+            window.BEC.cargarPerfil().then(function(p) {
+                if (p) {
+                    var rolElem = document.getElementById('perfil-rol-text');
+                    var nombreElem = document.getElementById('perfil-nombre-text');
+                    if (rolElem && p.rol) rolElem.textContent = 'PERFIL ' + p.rol;
+                    if (nombreElem && p.nombres) nombreElem.textContent = p.nombres + (p.apellidos ? ' ' + p.apellidos : '');
+                }
+            });
+        }
+    }
+});
 </script>
 {% endblock %}

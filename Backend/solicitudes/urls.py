@@ -3,7 +3,8 @@ from rest_framework.routers import DefaultRouter
 from .views import ClienteSolicitudesViewSet
 
 router = DefaultRouter()
-router.register(r'mis-solicitudes', ClienteSolicitudesViewSet, basename='mis-solicitudes')
+# Registrar con r'' genera las rutas /api/solicitudes/ y asigna el nombre 'mis-solicitudes-list'
+router.register(r'', ClienteSolicitudesViewSet, basename='mis-solicitudes')
 
 urlpatterns = [
     path('', include(router.urls)),

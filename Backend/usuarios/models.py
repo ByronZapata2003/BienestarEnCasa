@@ -25,18 +25,13 @@ class PerfilUsuario(models.Model):
         return f'{self.usuario.email or self.usuario.username} ({self.get_rol_display()})'
 
 class Direccion(models.Model):
-    usuario = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name='direcciones',
-    )
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='direcciones')
     direccion = models.CharField(max_length=255)
     ciudad = models.CharField(max_length=100)
-    barrio_sector = models.CharField(max_length=100)
-    informacion_complementaria = models.TextField(blank=True)
+    barrio = models.CharField(max_length=100)
+    complemento = models.TextField(blank=True, null=True)
     es_principal = models.BooleanField(default=False)
-    creada_en = models.DateTimeField(auto_now_add=True)
-    actualizada_en = models.DateTimeField(auto_now=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         verbose_name = 'dirección'

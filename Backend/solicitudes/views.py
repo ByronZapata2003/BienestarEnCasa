@@ -1,15 +1,18 @@
 from django.shortcuts import render
-
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
+
 from .models import SolicitudReserva
 from .serializers import SolicitudReservaSerializer
+# Importamos la autenticación personalizada por Cookies/JWT
+from usuarios.authentication import CookieJWTAuthentication
 
 class ClienteSolicitudesViewSet(viewsets.ModelViewSet):
     """
     Vista dedicada a la gestión y consulta de solicitudes/reservas del cliente (HU-13)
     """
     serializer_class = SolicitudReservaSerializer
+    authentication_classes = [CookieJWTAuthentication]  # <--- HABILITA LA AUTENTICACIÓN POR COOKIE/JWT
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):

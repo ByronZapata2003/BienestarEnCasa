@@ -123,13 +123,16 @@ class DireccionSerializer(serializers.ModelSerializer):
             'id',
             'direccion',
             'ciudad',
-            'barrio_sector',
-            'informacion_complementaria',
+            'barrio',
+            'complemento',
             'es_principal',
-            'creada_en',
-            'actualizada_en',
+            'creado_en',
         )
-        read_only_fields = ('id', 'creada_en', 'actualizada_en')
+        read_only_fields = ('id', 'creado_en')
+        extra_kwargs = {
+            'barrio': {'required': False, 'allow_blank': True},
+            'complemento': {'required': False, 'allow_blank': True, 'allow_null': True},
+        }
 
 class PerfilProveedorSerializer(serializers.ModelSerializer):
     class Meta:

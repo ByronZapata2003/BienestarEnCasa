@@ -112,35 +112,36 @@ class MiPerfilView(generics.RetrieveUpdateAPIView):
 
 class DireccionListCreateView(generics.ListCreateAPIView):
     serializer_class = DireccionSerializer
-    #envia lo que tiene que hacer y respuestas al html
+
     def get_queryset(self):
         if self.request.user.perfil.rol != PerfilUsuario.Rol.CLIENTE:
             raise PermissionDenied('Solo los clientes pueden consultar direcciones.')
 
         return Direccion.objects.filter(
             usuario=self.request.user
-        ).order_by('-es_principal', '-creada_en')
+        ).order_by('-es_principal', '-creado_en')
 
-    def perform_create(self, serializer): #aqui la crea y verifico si es cliente o no
+    def perform_create(self, serializer):
         if self.request.user.perfil.rol != PerfilUsuario.Rol.CLIENTE:
             raise PermissionDenied('Solo los clientes pueden registrar direcciones.')
 
-        existe_direccion_principal = Direccion.objects.filter(
-            usuario=self.request.user,
-            es_principal=True,
-        ).exists()
-
+        # Si esta nueva dirección se marca como principal, desmarcar las anteriores del usuario
         es_principal = serializer.validated_data.get('es_principal', False)
-
         if es_principal:
             Direccion.objects.filter(
                 usuario=self.request.user,
                 es_principal=True,
             ).update(es_principal=False)
 
+        # Si el usuario no tiene direcciones previas, forzar que esta sea principal
+        existe_direccion = Direccion.objects.filter(usuario=self.request.user).exists()
+        if not existe_direccion:
+            es_principal = True
+
+        # Pasa explícitamente el objeto de usuario actual
         serializer.save(
             usuario=self.request.user,
-            es_principal=es_principal or not existe_direccion_principal,
+            es_principal=es_principal,
         )
 
 class DireccionDetalleView(generics.RetrieveUpdateAPIView):

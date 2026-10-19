@@ -6,37 +6,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="BienestarEnCasa - Servicios de bienestar integral en el hogar">
     <title>{% block title %}BienestarEnCasa{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'estilos.css' %}">
+    
+    <link rel="stylesheet" href="{% static 'estilos.css' %}?v=1.4">
+    
     {% block extra_head %}{% endblock %}
 </head>
 <body class="body-content">
-    <!-- Header -->
-    <header class="site-header">
-        <div class="container header-container">
-            <a href="{% url 'pagina-inicio' %}" class="brand" aria-label="BienestarEnCasa - Inicio">
-                BienestarEnCasa
+
+    <!-- Header Fijo de Extremo a Extremo estilo Figma -->
+    <header class="main-header">
+        <div class="header-container">
+            <a class="brand-logo" aria-label="BienestarEnCasa - Inicio">
+                <span class="logo-badge">B+</span> BienestarEnCasa
             </a>
-            <!--
-                Navegación: los elementos con data-solo se muestran/ocultan por JS según la sesión.
-                invitado = sin sesión | CLIENTE | PROVEEDOR | usuario = cualquier sesión iniciada
-            -->
+            
             <nav class="main-nav" aria-label="Navegación principal">
+                {% block header_nav %}
                 <ul class="nav-list">
-                    <li data-solo="invitado"><a href="{% url 'pagina-login' %}" class="nav-link">Iniciar Sesión</a></li>
-                    <li data-solo="invitado"><a href="{% url 'pagina-registro' %}" class="nav-link">Registrarse</a></li>
-
+                    <li data-solo="invitado"><button type="button" id="btn-abrir-login-modal" class="btn-nav-login">Iniciar sesión</button></li>
                     <li data-solo="usuario" hidden><a href="{% url 'pagina-catalogo' %}" class="nav-link">Catálogo</a></li>
-
                     <li data-solo="CLIENTE" hidden><a href="{% url 'pagina-mis-solicitudes' %}" class="nav-link">Mis Solicitudes</a></li>
                     <li data-solo="CLIENTE" hidden><a href="{% url 'pagina-direcciones' %}" class="nav-link">Mis Direcciones</a></li>
-
                     <li data-solo="PROVEEDOR" hidden><a href="{% url 'pagina-panel-proveedor' %}" class="nav-link">Panel Proveedor</a></li>
                     <li data-solo="PROVEEDOR" hidden><a href="{% url 'pagina-mis-servicios' %}" class="nav-link">Mis Servicios</a></li>
                     <li data-solo="PROVEEDOR" hidden><a href="{% url 'pagina-zonas' %}" class="nav-link">Zonas de Atención</a></li>
-
                     <li data-solo="usuario" hidden><a href="{% url 'pagina-perfil' %}" class="nav-link">Mi Perfil</a></li>
-                    <li data-solo="usuario" hidden><button type="button" id="btn-cerrar-sesion" class="nav-link">Cerrar Sesión</button></li>
+                    <li data-solo="usuario" hidden><button type="button" id="btn-cerrar-sesion" class="btn-nav-logout">Cerrar Sesión</button></li>
                 </ul>
+                {% endblock %}
             </nav>
         </div>
     </header>
@@ -46,7 +43,8 @@
         {% block body %}{% endblock %}
     </main>
 
-    <!-- Footer -->
+    <!-- Footer Global -->
+    {% block footer %}
     <footer class="site-footer">
         <div class="container footer-container">
             <p>&copy; {% now "Y" %} BienestarEnCasa. Todos los derechos reservados.</p>
@@ -57,21 +55,130 @@
             </ul>
         </div>
     </footer>
+    {% endblock %}
 
-    <!--
-        ============================================================
-        Cliente JS compartido (window.BEC)
-        La API usa JWT en cookies httponly: el navegador las manda solo
-        y el JS nunca ve los tokens. Las peticiones que modifican datos
-        llevan el token CSRF en la cabecera X-CSRFToken. Todas las páginas usan estas
-        funciones, así no se repite lógica de autenticación.
-        ============================================================
-    -->
+    <!-- Ventana Flotante / Modal Global de Iniciar Sesión y Registro -->
+    <div id="modalLogin" class="modal-login-overlay" aria-hidden="true">
+        <div class="modal-login-container">
+            <button type="button" class="btn-cerrar-modal" id="btnCerrarModal" aria-label="Cerrar modal">&times;</button>
+            
+            <!-- VISTA INICIAR SESIÓN FLOTANTE -->
+            <div id="vistaLoginModal">
+                <div class="login-logo-badge">B+</div>
+                <h2 class="login-title-text">Bienvenido</h2>
+                <p class="login-subtitle-text">Ingresa tus credenciales para acceder</p>
+
+                <div class="login-card-box">
+                    <div id="mensajesModal" aria-live="polite"></div>
+
+                    <div class="user-avatar-circle">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    </div>
+
+                    <form id="loginFormModal" novalidate>
+                        <div class="form-group-field">
+                            <label for="emailModal">Correo Electrónico</label>
+                            <input type="email" id="emailModal" name="email" placeholder="ejemplo@correo.com" required>
+                        </div>
+
+                        <div class="form-group-field">
+                            <label for="passwordModal">Contraseña</label>
+                            <input type="password" id="passwordModal" name="password" placeholder="••••••••" required>
+                        </div>
+
+                        <div style="text-align: right; margin-top: 0.3rem; margin-bottom: 1rem;">
+                            <a href="{% url 'password_reset' %}" style="color: #2563eb; font-size: 0.85rem; font-weight: 600; text-decoration: none;">
+                                ¿Olvidaste tu contraseña?
+                            </a>
+                        </div>
+
+                        <button type="submit" class="btn-login-submit">Iniciar sesión</button>
+                    </form>
+
+                    <p class="login-footer-register">
+                        ¿No tienes cuenta? <a href="#" id="linkIrARegistro">Regístrate aquí</a>
+                    </p>
+                </div>
+            </div>
+
+            <!-- VISTA REGISTRO FLOTANTE -->
+            <div id="vistaRegistroModal" style="display: none;">
+                <div class="login-logo-badge">B+</div>
+                <h2 class="login-title-text">Crea tu cuenta</h2>
+                <p class="login-subtitle-text">Únete a Bienestar en Casa en pocos pasos</p>
+
+                <div class="login-card-box">
+                    <div id="mensajesRegistroModal" aria-live="polite"></div>
+
+                    <form id="registroFormModal" novalidate>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div class="form-group-field">
+                                <label for="regNombres">Nombres</label>
+                                <input type="text" id="regNombres" name="nombres" placeholder="Ej: Maria" required>
+                            </div>
+                            <div class="form-group-field">
+                                <label for="regApellidos">Apellidos</label>
+                                <input type="text" id="regApellidos" name="apellidos" placeholder="Ej: Pérez" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group-field">
+                            <label for="regEmail">Correo electrónico</label>
+                            <input type="email" id="regEmail" name="email" placeholder="ejemplo@correo.com" required>
+                        </div>
+
+                        <div class="form-group-field">
+                            <label for="regRol">Deseo registrarme como</label>
+                            <select id="regRol" name="rol" class="modal-select-field">
+                                <option value="CLIENTE">Cliente (Solicitar servicios)</option>
+                                <option value="PROVEEDOR">Proveedor (Ofrecer servicios)</option>
+                            </select>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div class="form-group-field">
+                                <label for="regPassword">Contraseña</label>
+                                <input type="password" id="regPassword" name="password" placeholder="••••••••" required>
+                            </div>
+                            <div class="form-group-field">
+                                <label for="regPasswordConfirm">Confirmar contraseña</label>
+                                <input type="password" id="regPasswordConfirm" name="password_confirmacion" placeholder="••••••••" required>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn-login-submit">Crear Cuenta</button>
+                    </form>
+
+                    <p class="login-footer-register">
+                        ¿Ya tienes una cuenta? <a href="#" id="linkIrALogin">Inicia sesión</a>
+                    </p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Script Global window.BEC -->
     <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var rutaActual = window.location.pathname;
+        var enlacesNav = document.querySelectorAll('.nav-list .nav-link');
+
+        enlacesNav.forEach(function(link) {
+            var href = link.getAttribute('href');
+
+            // Comprueba si el enlace coincide con la ruta exacta donde está ubicado el usuario
+            if (href && (href === rutaActual || (href !== '/' && rutaActual.startsWith(href)))) {
+                link.classList.add('active-link'); // Aplica el recuadro y estilo activo
+                link.removeAttribute('href');       // Elimina la función de enlace (desactiva href)
+                link.setAttribute('aria-current', 'page');
+            }
+        });
+    });
+
     (function () {
         'use strict';
 
-        // ---------- Rutas (generadas por Django para no escribirlas a mano) ----------
         var CFG = {
             csrf: "{{ csrf_token }}",
             api: {
@@ -112,18 +219,14 @@
 
         var K = { perfil: 'bec_perfil', flash: 'bec_flash' };
 
-        // ---------- Almacenamiento (con try/catch por si el navegador lo bloquea) ----------
         function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
-        function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* sin almacenamiento */ } }
-        function lsDel(k) { try { localStorage.removeItem(k); } catch (e) { /* nada */ } }
+        function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { } }
+        function lsDel(k) { try { localStorage.removeItem(k); } catch (e) { } }
         function clearSession() { lsDel(K.perfil); }
 
-        // Reemplaza el "0" de una ruta plantilla por un id real: /algo/0/ -> /algo/5/
         function url(tpl, id) { return tpl.replace('/0/', '/' + encodeURIComponent(id) + '/'); }
-
         function param(nombre) { return new URLSearchParams(window.location.search).get(nombre); }
 
-        // ---------- Crear elementos DOM de forma segura (sin innerHTML con datos) ----------
         function h(tag, props) {
             var el = document.createElement(tag);
             if (props) {
@@ -147,33 +250,6 @@
         }
         function clear(el) { while (el.firstChild) { el.removeChild(el.firstChild); } }
 
-        // ---------- Mensajes ----------
-        var ETIQUETAS = {
-            nombres: 'Nombres', apellidos: 'Apellidos', email: 'Correo', password: 'Contraseña',
-            password_confirmacion: 'Confirmación de contraseña', rol: 'Rol', telefono: 'Teléfono',
-            direccion: 'Dirección', ciudad: 'Ciudad', barrio_sector: 'Barrio/Sector',
-            informacion_complementaria: 'Información complementaria', es_principal: 'Dirección principal',
-            descripcion_profesional: 'Descripción profesional', categoria: 'Categoría', nombre: 'Nombre',
-            descripcion: 'Descripción', duracion_minutos: 'Duración (minutos)', precio: 'Precio', estado: 'Estado',
-            fecha_solicitada: 'Fecha', hora_solicitada: 'Hora', direccion_atencion: 'Dirección de atención',
-            observaciones: 'Observaciones', servicio: 'Servicio', proveedor: 'Proveedor'
-        };
-        // Convierte cualquier respuesta de error de DRF en una lista de textos legibles
-        function errores(d) {
-            if (d === null || d === undefined) { return []; }
-            if (typeof d === 'string') { return [d]; }
-            if (Array.isArray(d)) { return d.reduce(function (a, x) { return a.concat(errores(x)); }, []); }
-            if (typeof d === 'object') {
-                var out = [];
-                Object.keys(d).forEach(function (k) {
-                    var pref = (k === 'detail' || k === 'non_field_errors') ? '' : (ETIQUETAS[k] || k) + ': ';
-                    errores(d[k]).forEach(function (m) { out.push(pref + m); });
-                });
-                return out;
-            }
-            return [String(d)];
-        }
-        // Muestra un mensaje (texto o lista) dentro de #mensajes (o el contenedor indicado)
         function mensaje(textos, tipo, contenedor) {
             var box = contenedor || document.getElementById('mensajes');
             if (!box) { return; }
@@ -183,117 +259,38 @@
             var rol = tipo === 'error' ? 'alert' : 'status';
             box.appendChild(h('ul', { class: 'mensaje mensaje-' + (tipo || 'info'), role: rol },
                 lista.map(function (t) { return h('li', { text: t }); })));
-            if (tipo === 'error') { box.scrollIntoView({ block: 'nearest' }); }
         }
         function mensajeError(res, contenedor) {
-            var l = errores(res && res.data);
-            if (!l.length) { l = ['Ocurrió un error inesperado (código ' + (res ? res.status : '?') + ').']; }
+            var l = (res && res.data && res.data.detail) ? [res.data.detail] : ['Credenciales incorrectas o error en el servidor.'];
             mensaje(l, 'error', contenedor);
         }
-        // "Flash": mensaje que sobrevive a una redirección y se muestra en la página siguiente
-        function flash(texto) { try { sessionStorage.setItem(K.flash, texto); } catch (e) { /* nada */ } }
-        function mostrarFlash() {
-            var t = null;
-            try { t = sessionStorage.getItem(K.flash); sessionStorage.removeItem(K.flash); } catch (e) { /* nada */ }
-            if (t) { mensaje(t, 'exito'); }
-        }
 
-        // ---------- Peticiones a la API ----------
-        var refrescando = null;
-        function renovarToken() { // el refresh viaja en su cookie; el servidor responde con una cookie access nueva
-            if (!refrescando) {
-                refrescando = fetch(CFG.api.renovar, {
-                    method: 'POST',
-                    headers: { 'X-CSRFToken': CFG.csrf },
-                    credentials: 'same-origin'
-                }).then(function (res) { return res.ok; })
-                  .catch(function () { return false; })
-                  .then(function (ok) { refrescando = null; return ok; });
-            }
-            return refrescando;
-        }
-
-        function irALogin() {
-            var next = window.location.pathname + window.location.search;
-            window.location.replace(CFG.pages.login + '?next=' + encodeURIComponent(next));
-        }
-        function sesionExpirada() {
-            clearSession();
-            if (window.location.pathname !== CFG.pages.login) { irALogin(); }
-        }
-
-        /*
-          request(url, {method, body, auth})
-          Devuelve siempre una promesa que resuelve {ok, status, data}.
-          Si el token venció intenta renovarlo una vez; si no puede, manda al login.
-        */
         function request(u, opts) {
             opts = opts || {};
-            var conAuth = opts.auth !== false;
-            function enviar() {
-                var headers = { 'Accept': 'application/json' };
-                if (opts.body !== undefined) { headers['Content-Type'] = 'application/json'; }
-                if (opts.method && opts.method !== 'GET') { headers['X-CSRFToken'] = CFG.csrf; }
-                return fetch(u, {
-                    method: opts.method || 'GET',
-                    headers: headers,
-                    credentials: 'same-origin',
-                    body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
-                });
-            }
-            return enviar().then(function (res) {
-                if (res.status === 401 && conAuth) {
-                    return renovarToken().then(function (ok) {
-                        if (!ok) { sesionExpirada(); return res; }
-                        return enviar();
-                    });
-                }
-                return res;
+            var headers = { 'Accept': 'application/json' };
+            if (opts.body !== undefined) { headers['Content-Type'] = 'application/json'; }
+            if (opts.method && opts.method !== 'GET') { headers['X-CSRFToken'] = CFG.csrf; }
+            
+            return fetch(u, {
+                method: opts.method || 'GET',
+                headers: headers,
+                credentials: 'same-origin',
+                body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
             }).then(function (res) {
-                if (res.status === 204) { return { ok: true, status: 204, data: null }; }
                 return res.json().catch(function () { return null; }).then(function (data) {
                     return { ok: res.ok, status: res.status, data: data };
                 });
-            }, function () {
-                return { ok: false, status: 0, data: { detail: 'No fue posible conectar con el servidor.' } };
             });
         }
 
-        // ---------- Sesión ----------
         function perfilCache() {
             try { return JSON.parse(lsGet(K.perfil) || 'null'); } catch (e) { return null; }
         }
-        function cargarPerfil(forzar) {
-            var c = perfilCache();
-            if (c && !forzar) { return Promise.resolve(c); }
-            return request(CFG.api.miPerfil).then(function (res) {
-                if (res.ok) { lsSet(K.perfil, JSON.stringify(res.data)); return res.data; }
-                return null;
-            });
-        }
+
         function inicioPorRol(rol) {
-            return rol === 'PROVEEDOR' ? CFG.pages.panelProveedor : CFG.pages.catalogo;
-        }
-        /*
-          requiereSesion(['CLIENTE'])  -> promesa con el perfil, o null si redirigió.
-          Sin parámetro basta con tener sesión (cualquier rol).
-        */
-        function requiereSesion(roles) {
-            return cargarPerfil(false).then(function (p) {
-                if (!p) { return null; }
-                if (roles && roles.indexOf(p.rol) === -1) {
-                    window.location.replace(inicioPorRol(p.rol));
-                    return null;
-                }
-                return p;
-            });
-        }
-        function cerrarSesion() {
-            function fin() { clearSession(); window.location.replace(CFG.pages.login); }
-            request(CFG.api.cerrarSesion, { method: 'POST', auth: false }).then(fin, fin);
+            return rol === 'PROVEEDOR' ? CFG.pages.panelProveedor : CFG.pages.perfil;
         }
 
-        // ---------- Navegación según sesión ----------
         function pintarNav() {
             var p = perfilCache();
             var items = document.querySelectorAll('[data-solo]');
@@ -304,31 +301,13 @@
             }
         }
 
-        // ---------- Formato ----------
-        function dinero(v) {
-            var n = Number(v);
-            return '$' + (isNaN(n) ? v : n.toLocaleString('es-CO', { maximumFractionDigits: 2 }));
+        function cerrarSesion() {
+            request(CFG.api.cerrarSesion, { method: 'POST', auth: false }).then(function() {
+                clearSession();
+                window.location.href = CFG.pages.inicio || '/';
+            });
         }
-        function fecha(iso) { // 'YYYY-MM-DD' -> 'DD/MM/YYYY' (sin pasar por Date para evitar desfases de zona horaria)
-            if (!iso) { return ''; }
-            var p = String(iso).split('-');
-            return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : iso;
-        }
-        function hora(t) { return t ? String(t).slice(0, 5) : ''; }
-        function fechaHora(iso) {
-            if (!iso) { return ''; }
-            var d = new Date(iso);
-            return isNaN(d) ? iso : d.toLocaleString('es-CO');
-        }
-        function lista(data) { // la API a veces responde {mensaje, resultados: []} en vez de una lista
-            if (Array.isArray(data)) { return data; }
-            if (data && Array.isArray(data.resultados)) { return data.resultados; }
-            return [];
-        }
-        var ESTADOS_SOLICITUD = { PENDIENTE: 'Pendiente', SUGERIDA: 'Sugerida', ACEPTADA: 'Aceptada', COMPLETADA: 'Completada', CANCELADA: 'Cancelada' };
-        var ESTADOS_SERVICIO = { ACTIVO: 'Activo', INACTIVO: 'Inactivo' };
 
-        // Bloquea/desbloquea el botón de envío mientras se espera respuesta
         function ocupado(form, si) {
             var b = form.querySelector('button[type="submit"]');
             if (b) { b.disabled = !!si; }
@@ -336,23 +315,308 @@
 
         window.BEC = {
             cfg: CFG, api: request, url: url, param: param, h: h, clear: clear,
-            mensaje: mensaje, mensajeError: mensajeError, errores: errores, flash: flash,
-            requiereSesion: requiereSesion, cargarPerfil: cargarPerfil, perfilCache: perfilCache,
-            inicioPorRol: inicioPorRol, cerrarSesion: cerrarSesion, pintarNav: pintarNav,
-            haySesion: function () { return !!perfilCache(); }, // solo indica si hay perfil guardado; la sesion real la valida el servidor
-            dinero: dinero, fecha: fecha, hora: hora, fechaHora: fechaHora, lista: lista,
-            ESTADOS_SOLICITUD: ESTADOS_SOLICITUD, ESTADOS_SERVICIO: ESTADOS_SERVICIO, ocupado: ocupado
+            mensaje: mensaje, mensajeError: mensajeError, perfilCache: perfilCache,
+            inicioPorRol: inicioPorRol, cerrarSesion: cerrarSesion, pintarNav: pintarNav, ocupado: ocupado
         };
 
         document.addEventListener('DOMContentLoaded', function () {
             pintarNav();
-            mostrarFlash();
             var b = document.getElementById('btn-cerrar-sesion');
             if (b) { b.addEventListener('click', cerrarSesion); }
         });
     })();
+
+    /* Eventos para Abrir / Cerrar el Modal Flotante */
+    document.addEventListener('DOMContentLoaded', function() {
+        var modal = document.getElementById('modalLogin');
+        var btnCerrar = document.getElementById('btnCerrarModal');
+        var vistaLogin = document.getElementById('vistaLoginModal');
+        var vistaRegistro = document.getElementById('vistaRegistroModal');
+        var linkRegistro = document.getElementById('linkIrARegistro');
+        var linkLogin = document.getElementById('linkIrALogin');
+
+        var formLoginModal = document.getElementById('loginFormModal');
+        var formRegistroModal = document.getElementById('registroFormModal');
+
+        // Abrir Modal al hacer clic en Iniciar Sesión en la barra
+        document.addEventListener('click', function(e) {
+            if (e.target && (e.target.id === 'btn-abrir-login-modal' || e.target.classList.contains('btn-nav-login'))) {
+                e.preventDefault();
+                if (modal) {
+                    vistaLogin.style.display = 'block';
+                    vistaRegistro.style.display = 'none';
+                    modal.classList.add('activo');
+                }
+            }
+        });
+
+        if (linkRegistro) {
+            linkRegistro.addEventListener('click', function(e) {
+                e.preventDefault();
+                vistaLogin.style.display = 'none';
+                vistaRegistro.style.display = 'block';
+            });
+        }
+
+        if (linkLogin) {
+            linkLogin.addEventListener('click', function(e) {
+                e.preventDefault();
+                vistaRegistro.style.display = 'none';
+                vistaLogin.style.display = 'block';
+            });
+        }
+
+        if (btnCerrar) {
+            btnCerrar.addEventListener('click', function() { if (modal) modal.classList.remove('activo'); });
+        }
+        if (modal) {
+            modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('activo'); });
+        }
+
+        // Envío de Formulario Iniciar Sesión desde el Modal -> Redirige al Perfil correspondiente
+        if (formLoginModal) {
+            formLoginModal.addEventListener('submit', function(e) {
+                e.preventDefault();
+                var emailInput = document.getElementById('emailModal').value.trim();
+                var passInput = document.getElementById('passwordModal').value;
+
+                var datos = { username: emailInput, email: emailInput, password: passInput };
+
+                if (!datos.email || !datos.password) {
+                    window.BEC.mensaje('Ingresa tu correo y contraseña.', 'error', document.getElementById('mensajesModal'));
+                    return;
+                }
+
+                window.BEC.ocupado(formLoginModal, true);
+
+                window.BEC.api(window.BEC.cfg.api.iniciarSesion, { method: 'POST', body: datos }).then(function(res) {
+                    window.BEC.ocupado(formLoginModal, false);
+                    if (res.ok) {
+                        if (res.data) {
+                            try { localStorage.setItem('bec_perfil', JSON.stringify(res.data)); } catch (e) {}
+                        }
+                        var destino = res.data && res.data.rol ? window.BEC.inicioPorRol(res.data.rol) : (window.BEC.cfg.pages.perfil || '/mi-perfil/');
+                        window.location.href = destino;
+                    } else {
+                        window.BEC.mensajeError(res, document.getElementById('mensajesModal'));
+                    }
+                });
+            });
+        }
+
+        // Envío de Formulario Registro desde el Modal
+        if (formRegistroModal) {
+            formRegistroModal.addEventListener('submit', function(e) {
+                e.preventDefault();
+                var payload = {
+                    nombres: document.getElementById('regNombres').value.trim(),
+                    apellidos: document.getElementById('regApellidos').value.trim(),
+                    email: document.getElementById('regEmail').value.trim(),
+                    rol: document.getElementById('regRol').value,
+                    password: document.getElementById('regPassword').value,
+                    password_confirmacion: document.getElementById('regPasswordConfirm').value
+                };
+
+                window.BEC.ocupado(formRegistroModal, true);
+
+                window.BEC.api(window.BEC.cfg.api.registro, { method: 'POST', body: payload }).then(function(res) {
+                    window.BEC.ocupado(formRegistroModal, false);
+                    if (res.ok) {
+                        if (res.data) {
+                            try { localStorage.setItem('bec_perfil', JSON.stringify(res.data)); } catch (e) {}
+                        }
+                        var destino = res.data && res.data.rol ? window.BEC.inicioPorRol(res.data.rol) : (window.BEC.cfg.pages.perfil || '/mi-perfil/');
+                        window.location.href = destino;
+                    } else {
+                        window.BEC.mensajeError(res, document.getElementById('mensajesRegistroModal'));
+                    }
+                });
+            });
+        }
+    });
     </script>
 
-    {% block extra_body %}{% endblock %}
+    <!-- Estilos CSS para el Modal Flotante Centrado -->
+    <style>
+    .nav-link.active-link {
+        border: 1.5px solid #2563eb !important;
+        background-color: #eff6ff !important;
+        color: #2563eb !important;
+        border-radius: 0.5rem !important;
+        padding: 0.4rem 0.85rem !important;
+        font-weight: 700 !important;
+        cursor: default !important;
+        pointer-events: none !important;
+        text-decoration: none !important;
+        display: inline-block;
+    }
+
+    .modal-login-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(15, 23, 42, 0.55);
+        backdrop-filter: blur(6px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.25s ease;
+    }
+
+    .modal-login-overlay.activo {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .modal-login-container {
+        background: #ffffff;
+        border-radius: 24px;
+        padding: 32px 28px;
+        width: 100%;
+        max-width: 440px;
+        position: relative;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        transform: translateY(-15px);
+        transition: transform 0.25s ease;
+        text-align: center;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+
+    .modal-login-overlay.activo .modal-login-container {
+        transform: translateY(0);
+    }
+
+    .btn-cerrar-modal {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        color: #64748B;
+        cursor: pointer;
+        border-radius: 8px;
+        line-height: 1;
+        padding: 4px 8px;
+    }
+
+    .btn-cerrar-modal:hover {
+        background-color: #F1F5F9;
+        color: #0F172A;
+    }
+
+    .modal-login-container .login-logo-badge {
+        width: 48px;
+        height: 48px;
+        background-color: #1A68FF;
+        color: #ffffff;
+        font-weight: 800;
+        font-size: 1.3rem;
+        border-radius: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 8px;
+    }
+
+    .modal-login-container .login-title-text {
+        font-size: 1.6rem;
+        font-weight: 800;
+        color: #0F172A;
+        margin: 0 0 4px 0;
+    }
+
+    .modal-login-container .login-subtitle-text {
+        color: #64748B;
+        font-size: 0.85rem;
+        margin: 0 0 16px 0;
+    }
+
+    .modal-login-container .user-avatar-circle {
+        width: 44px;
+        height: 44px;
+        background-color: #EFF6FF;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 14px auto;
+        color: #1A68FF;
+    }
+
+    .modal-login-container .form-group-field {
+        margin-bottom: 12px;
+        text-align: left;
+    }
+
+    .modal-login-container .form-group-field label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #334155;
+        margin-bottom: 4px;
+        display: block;
+    }
+
+    .modal-login-container .form-group-field input,
+    .modal-login-container .modal-select-field {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid #CBD5E1;
+        background-color: #F8FAFC;
+        font-size: 0.875rem;
+        color: #0F172A;
+        outline: none;
+        transition: all 0.2s ease;
+    }
+
+    .modal-login-container .form-group-field input:focus,
+    .modal-login-container .modal-select-field:focus {
+        background-color: #ffffff;
+        border-color: #1A68FF;
+        box-shadow: 0 0 0 3px rgba(26, 104, 255, 0.15);
+    }
+
+    .modal-login-container .btn-login-submit {
+        width: 100%;
+        background-color: #1A68FF;
+        color: #ffffff;
+        font-weight: 700;
+        padding: 12px;
+        border-radius: 10px;
+        border: none;
+        font-size: 0.95rem;
+        cursor: pointer;
+        margin-top: 8px;
+        transition: background-color 0.2s ease;
+    }
+
+    .modal-login-container .btn-login-submit:hover {
+        background-color: #0052E0;
+    }
+
+    .modal-login-container .login-footer-register {
+        font-size: 0.85rem;
+        color: #64748B;
+        margin-top: 14px;
+    }
+
+    .modal-login-container .login-footer-register a {
+        color: #1A68FF;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .modal-login-container .login-footer-register a:hover {
+        text-decoration: underline;
+    }
+    </style>
 </body>
 </html>

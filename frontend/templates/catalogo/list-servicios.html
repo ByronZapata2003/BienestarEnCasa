@@ -1,114 +1,310 @@
 {% extends "base.html" %}
+{% load static %}
 
-{% block title %}Catálogo de Servicios - BienestarEnCasa{% endblock %}
+{% block title %}Catálogo de Servicios - Bienestar en Casa{% endblock %}
 
-{% block body %}
-<div class="container">
-    <h1>Catálogo de Servicios</h1>
-
-    <!-- Mensajes de sistema -->
-    <div id="mensajes" aria-live="polite"></div>
-
-    <!-- Búsqueda por nombre/descripción/categoría y filtro por categoría (HU-09) -->
-    <form id="form-filtros" class="filter-section" role="search" novalidate>
-        <div class="form-group">
-            <label for="buscar">Buscar servicio:</label>
-            <input type="search" name="search" id="buscar" placeholder="Ej: masaje, yoga, fisioterapia">
-        </div>
-
-        <div class="form-group">
-            <label for="categoria">Categoría:</label>
-            <select name="categoria" id="categoria">
-                <option value="">Todas las Categorías</option>
-            </select>
-        </div>
-
-        <div class="form-actions">
-            <button type="submit">Buscar</button>
-            <button type="button" id="btn-limpiar">Limpiar filtros</button>
-        </div>
-    </form>
-
-    <!-- Resultado de la búsqueda -->
-    <p id="resumen-resultados" aria-live="polite"></p>
-
-    <!-- Listado de servicios -->
-    <div id="lista-servicios" class="services-grid"></div>
-</div>
+{% block header_nav %}
+<!-- Navbar fija para la sesión privada del cliente -->
+<ul class="nav-list">
+    <li><a href="{% url 'pagina-catalogo' %}" class="nav-link">Catálogo</a></li>
+    <li><a href="{% url 'pagina-mis-solicitudes' %}" class="nav-link">Mis Solicitudes</a></li>
+    <li><a href="{% url 'pagina-direcciones' %}" class="nav-link">Mis Direcciones</a></li>
+    <li><a href="{% url 'pagina-perfil' %}" class="nav-link">Mi Perfil</a></li>
+    <li><button type="button" id="btn-cerrar-sesion" class="btn-nav-logout">Cerrar Sesión</button></li>
+</ul>
 {% endblock %}
 
-{% block extra_body %}
-<script>
-(function () {
-    var h = BEC.h;
-    var form = document.getElementById('form-filtros');
-    var grid = document.getElementById('lista-servicios');
-    var resumen = document.getElementById('resumen-resultados');
+{% block extra_head %}
+<style>
+    .catalog-container {
+        max-width: 1280px;
+        margin: 32px auto 48px auto;
+        padding: 0 32px;
+        width: 100%;
+        box-sizing: border-box;
+    }
 
-    function cargarCategorias() {
-        BEC.api(BEC.cfg.api.categorias).then(function (res) {
-            if (!res.ok) { return; }   // sin categorías el catálogo igual funciona
-            BEC.lista(res.data).forEach(function (c) {
-                form.elements.categoria.appendChild(h('option', { value: c.id, text: c.nombre }));
-            });
-            // Si llegó ?categoria=ID en la URL, se deja seleccionada
-            var pre = BEC.param('categoria');
-            if (pre) { form.elements.categoria.value = pre; }
+    .catalog-header {
+        text-align: center;
+        margin-bottom: 28px;
+    }
+
+    .catalog-title {
+        font-size: 2.25rem;
+        font-weight: 800;
+        color: #0F172A;
+        margin-bottom: 6px;
+        letter-spacing: -0.02em;
+    }
+
+    .catalog-subtitle {
+        color: #64748B;
+        font-size: 1rem;
+    }
+
+    /* Buscador */
+    .filter-bar {
+        margin-bottom: 32px;
+        width: 100%;
+    }
+
+    .search-input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 14px 20px;
+        border-radius: 14px;
+        border: 1px solid #CBD5E1;
+        background-color: #ffffff;
+        font-size: 0.95rem;
+        color: #0F172A;
+        outline: none;
+        transition: all 0.2s ease;
+    }
+
+    .search-input:focus {
+        border-color: #1A68FF;
+        box-shadow: 0 0 0 3px rgba(26, 104, 255, 0.15);
+    }
+
+    /* Rejilla de tarjetas alineadas a la izquierda */
+    .services-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 360px));
+        gap: 24px;
+        width: 100%;
+        justify-content: start;
+    }
+
+    /* Tarjeta Blanca de Servicio Estilo Figma */
+    .service-card {
+        background: #ffffff;
+        border: 1px solid #E2E8F0;
+        border-radius: 20px;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+        box-sizing: border-box;
+        min-height: 220px;
+    }
+
+    .service-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.07);
+        border-color: #93C5FD;
+    }
+
+    .category-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        background-color: #EFF6FF;
+        color: #1A68FF;
+        font-weight: 700;
+        font-size: 0.75rem;
+        border-radius: 20px;
+        text-transform: uppercase;
+        margin-bottom: 12px;
+        width: fit-content;
+        letter-spacing: 0.03em;
+    }
+
+    .service-name {
+        font-size: 1.25rem;
+        font-weight: 800;
+        color: #0F172A;
+        margin-bottom: 8px;
+    }
+
+    .service-description {
+        color: #64748B;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        margin-bottom: 24px;
+        flex-grow: 1;
+    }
+
+    .service-card-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-top: 16px;
+        border-top: 1px solid #F1F5F9;
+    }
+
+    .service-price {
+        font-size: 1.35rem;
+        font-weight: 800;
+        color: #0F172A;
+        line-height: 1;
+    }
+
+    .service-duration {
+        font-size: 0.8rem;
+        color: #94A3B8;
+        display: block;
+        margin-top: 4px;
+    }
+
+    .btn-request {
+        background-color: #1A68FF;
+        color: #ffffff !important;
+        padding: 10px 22px;
+        border-radius: 12px;
+        text-decoration: none;
+        font-weight: 700;
+        font-size: 0.9rem;
+        transition: background-color 0.2s ease;
+        display: inline-block;
+    }
+
+    .btn-request:hover {
+        background-color: #0052E0;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #64748B;
+        grid-column: 1 / -1;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="catalog-container">
+    <div class="catalog-header">
+        <h1 class="catalog-title">Explora Nuestros Servicios</h1>
+        <p class="catalog-subtitle">Encuentra profesionales calificados para atenderte en la comodidad de tu hogar</p>
+    </div>
+
+    <div id="mensajes"></div>
+
+    <div class="filter-bar">
+        <input type="text" id="input-buscar" class="search-input" placeholder="Buscar por nombre de servicio...">
+    </div>
+
+    <div class="services-grid" id="grid-servicios">
+        <div class="empty-state">Cargando catálogo de servicios...</div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var grid = document.getElementById('grid-servicios');
+    var inputBuscar = document.getElementById('input-buscar');
+    var btnLogout = document.getElementById('btn-cerrar-sesion');
+    var todosLosServicios = [];
+
+    // Asignar evento al botón de cerrar sesión
+    if (btnLogout && window.BEC && window.BEC.cerrarSesion) {
+        btnLogout.addEventListener('click', function() {
+            window.BEC.cerrarSesion();
         });
     }
 
-    function resumir(texto) { resumen.textContent = texto; }
+    function formatearDinero(monto) {
+        if (window.BEC && window.BEC.dinero) {
+            return window.BEC.dinero(monto);
+        }
+        return '$' + Number(monto || 0).toLocaleString('es-CO');
+    }
+
+    function renderizar(servicios) {
+        if (!grid) return;
+        grid.innerHTML = '';
+
+        if (!Array.isArray(servicios) || servicios.length === 0) {
+            grid.innerHTML = '<div class="empty-state">No se encontraron servicios disponibles.</div>';
+            return;
+        }
+
+        servicios.forEach(function (s) {
+            var urlSolicitud = '/solicitud/crear/' + s.id + '/';
+            if (window.BEC && window.BEC.cfg && window.BEC.cfg.pages && window.BEC.cfg.pages.solicitudCrear) {
+                urlSolicitud = window.BEC.url(window.BEC.cfg.pages.solicitudCrear, s.id);
+            }
+
+            var catNombre = s.categoria_nombre || (s.categoria ? s.categoria.nombre : 'Bienestar');
+            var duracion = s.duracion_minutos || s.duracion || 60;
+
+            var cardHTML = `
+                <div class="service-card">
+                    <div>
+                        <span class="category-badge">${catNombre}</span>
+                        <h3 class="service-name">${s.nombre || 'Servicio sin título'}</h3>
+                        <p class="service-description">${s.descripcion || 'Sin descripción disponible.'}</p>
+                    </div>
+                    <div class="service-card-footer">
+                        <div>
+                            <div class="service-price">${formatearDinero(s.precio)}</div>
+                            <span class="service-duration">${duracion} min</span>
+                        </div>
+                        <a href="${urlSolicitud}" class="btn-request">Solicitar</a>
+                    </div>
+                </div>
+            `;
+            grid.insertAdjacentHTML('beforeend', cardHTML);
+        });
+    }
 
     function cargarServicios() {
-        var q = new URLSearchParams();
-        if (form.elements['search'].value.trim()) { q.set('search', form.elements['search'].value.trim()); }
-        if (form.elements.categoria.value) { q.set('categoria', form.elements.categoria.value); }
-        var url = BEC.cfg.api.servicios + (q.toString() ? '?' + q.toString() : '');
+        var urlApi = '/api/servicios/';
+        if (window.BEC && window.BEC.cfg && window.BEC.cfg.api && window.BEC.cfg.api.servicios) {
+            urlApi = window.BEC.cfg.api.servicios;
+        }
 
-        BEC.clear(grid);
-        resumir('Buscando...');
-        BEC.api(url).then(function (res) {
-            if (!res.ok) { resumir(''); BEC.mensajeError(res); return; }
-            BEC.mensaje([], 'info');
+        if (window.BEC && window.BEC.api) {
+            window.BEC.api(urlApi).then(function (res) {
+                if (res && res.ok && res.data) {
+                    if (window.BEC.lista) {
+                        todosLosServicios = window.BEC.lista(res.data);
+                    } else if (Array.isArray(res.data)) {
+                        todosLosServicios = res.data;
+                    } else {
+                        todosLosServicios = res.data.results || res.data.resultados || [];
+                    }
+                    renderizar(todosLosServicios);
+                } else {
+                    // Fallback directo a fetch estándar si BEC.api responde error
+                    fetchServiciosFallback(urlApi);
+                }
+            }).catch(function() {
+                fetchServiciosFallback(urlApi);
+            });
+        } else {
+            fetchServiciosFallback(urlApi);
+        }
+    }
 
-            // Solo se ofrecen servicios activos para agendar
-            var servicios = BEC.lista(res.data).filter(function (s) { return s.estado === 'ACTIVO'; });
+    function fetchServiciosFallback(endpoint) {
+        fetch(endpoint)
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
+                todosLosServicios = Array.isArray(data) ? data : (data.results || data.resultados || []);
+                renderizar(todosLosServicios);
+            })
+            .catch(function() {
+                renderizar([]);
+            });
+    }
 
-            if (!servicios.length) {
-                // La API envía un "mensaje" propio cuando una búsqueda no encuentra nada
-                var m = (res.data && res.data.mensaje) ? res.data.mensaje : 'No hay servicios disponibles en el catálogo.';
-                resumir(m);
-                return;
-            }
-            resumir(servicios.length + (servicios.length === 1 ? ' servicio encontrado' : ' servicios encontrados'));
-            servicios.forEach(function (s) { grid.appendChild(tarjeta(s)); });
+    // Cargar los servicios al iniciar la página
+    cargarServicios();
+
+    // Filtro de búsqueda
+    if (inputBuscar) {
+        inputBuscar.addEventListener('input', function () {
+            var term = this.value.toLowerCase().trim();
+            var filtrados = todosLosServicios.filter(function (s) {
+                var nombre = (s.nombre || '').toLowerCase();
+                var desc = (s.descripcion || '').toLowerCase();
+                return nombre.includes(term) || desc.includes(term);
+            });
+            renderizar(filtrados);
         });
     }
-
-    function tarjeta(s) {
-        var desc = String(s.descripcion || '');
-        if (desc.length > 160) { desc = desc.slice(0, 160).trim() + '...'; }
-        return h('article', { class: 'service-card' },
-            h('h2', { text: s.nombre }),
-            s.categoria_detalle ? h('p', { class: 'category', text: s.categoria_detalle.nombre }) : null,
-            h('p', null, h('strong', { text: 'Proveedor: ' }), s.nombre_proveedor),
-            h('p', null, h('strong', { text: 'Duración: ' }), s.duracion_minutos + ' min'),
-            h('p', null, h('strong', { text: 'Precio: ' }), BEC.dinero(s.precio)),
-            h('p', { text: desc }),
-            h('a', { href: BEC.url(BEC.cfg.pages.servicio, s.id), class: 'btn', text: 'Ver Detalles' }));
-    }
-
-    form.addEventListener('submit', function (e) { e.preventDefault(); cargarServicios(); });
-    document.getElementById('btn-limpiar').addEventListener('click', function () {
-        form.reset();
-        cargarServicios();
-    });
-
-    BEC.requiereSesion().then(function (p) {
-        if (!p) { return; }
-        cargarCategorias();
-        cargarServicios();
-    });
-})();
+});
 </script>
 {% endblock %}

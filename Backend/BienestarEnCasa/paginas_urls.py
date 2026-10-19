@@ -6,7 +6,7 @@ llamando a la API (/api/...) con el token JWT. No modifican ni reemplazan
 ninguna ruta de la API.
 """
 from django.urls import path
-from django.views.generic import RedirectView, TemplateView
+from django.views.generic import TemplateView
 
 
 def pagina(plantilla):
@@ -14,7 +14,8 @@ def pagina(plantilla):
 
 
 urlpatterns = [
-    path('', RedirectView.as_view(pattern_name='pagina-catalogo'), name='pagina-inicio'),
+    # Página de inicio / Landing Page
+    path('', pagina('inicio.html'), name='pagina-inicio'),
 
     # Usuarios
     path('iniciar-sesion/', pagina('users/iniciar-sesion.html'), name='pagina-login'),

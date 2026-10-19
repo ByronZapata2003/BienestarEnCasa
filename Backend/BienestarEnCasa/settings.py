@@ -82,7 +82,7 @@ WSGI_APPLICATION = 'BienestarEnCasa.wsgi.application'
 
 
 # Database
-# https://docs.djangoproject.com/en/6.1/ref/settings/#databases
+# https://docs.djangoproject.com/en/6.1/ref/databases
 
 DATABASES = {
     'default': {
@@ -135,7 +135,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATICFILES_DIRS = [FRONTEND_DIR / 'static']
 
 MEDIA_URL = 'media/'
@@ -151,11 +151,12 @@ REST_FRAMEWORK = {
 }
 
 
-# Email
-# https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
-
-MAILERS = {
-    'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
-    },
-}
+# Email Configuration - SMTP Gmail Real
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'rivasdiazsantiago0@gmail.com')
+# Sin espacios entre las 16 letras
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', 'rphqbqexuwjhblas') 
+DEFAULT_FROM_EMAIL = f'Bienestar en Casa <{EMAIL_HOST_USER}>'
