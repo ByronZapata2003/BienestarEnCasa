@@ -172,7 +172,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     var btnVolver = document.getElementById('btn-volver-inicio');
     
-    // 1. Funcionalidad del botón 'Volver al inicio' para cerrar sesión y enviar a landing
+    // 1. Funcionalidad del botón 'Volver al inicio'
     if (btnVolver) {
         btnVolver.addEventListener('click', function(e) {
             e.preventDefault();
@@ -185,7 +185,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // 2. Procesar Login
+    // 2. Procesar Login con redirección inteligente por ROL
     var form = document.getElementById('loginForm');
     if (form) {
         form.addEventListener('submit', function (e) {
@@ -209,15 +209,18 @@ document.addEventListener('DOMContentLoaded', function() {
             window.BEC.api(window.BEC.cfg.api.iniciarSesion, { method: 'POST', body: datos }).then(function (res) {
                 if (window.BEC && window.BEC.ocupado) window.BEC.ocupado(form, false);
                 if (res.ok) {
-                    if (res.data) {
-                        try {
-                            localStorage.setItem('bec_perfil', JSON.stringify(res.data));
-                        } catch (e) {}
-                    }
-                    if (window.BEC && window.BEC.inicioPorRol) {
-                        window.location.href = window.BEC.inicioPorRol(res.data);
+                    var perfilData = res.data || {};
+                    try {
+                        localStorage.setItem('bec_perfil', JSON.stringify(perfilData));
+                    } catch (e) {}
+
+                    // Redirección condicionada según el ROL retornado
+                    var rol = (perfilData.rol || '').toUpperCase();
+
+                    if (rol === 'PROVEEDOR') {
+                        window.location.href = '{% url "pagina-panel-proveedor" %}';
                     } else {
-                        window.location.href = window.BEC.cfg.pages.perfil || '/mi-perfil/';
+                        window.location.href = '{% url "pagina-perfil" %}';
                     }
                 } else {
                     if (window.BEC && window.BEC.mensajeError) window.BEC.mensajeError(res);

@@ -32,7 +32,7 @@ class Servicio(models.Model):
         related_name='servicios'
     )
     nombre = models.CharField(max_length=150)
-    descripcion = models.TextField()
+    descripcion = models.TextField(blank=True, null=True, default='')
     duracion_minutos = models.PositiveIntegerField(help_text="Duración estimada en minutos")
     precio = models.DecimalField(max_digits=10, decimal_places=2)
     estado = models.CharField(max_length=10, choices=Estado.choices, default=Estado.ACTIVO)

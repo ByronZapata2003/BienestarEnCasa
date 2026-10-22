@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -160,3 +161,11 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'rivasdiazsantiago0@gmail.com')
 # Sin espacios entre las 16 letras
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', 'rphqbqexuwjhblas') 
 DEFAULT_FROM_EMAIL = f'Bienestar en Casa <{EMAIL_HOST_USER}>'
+
+# Configuración de tiempo de vida de los Tokens JWT
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=8),     # El token dura 8 horas
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),     # El refresh dura 7 días
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+}

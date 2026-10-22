@@ -1,0 +1,37 @@
+<ul class="nav-list">
+    <li>
+        {% if request.resolver_match.url_name == 'pagina-panel-proveedor' %}
+            <span class="nav-link active-link">Panel Proveedor</span>
+        {% else %}
+            <a href="{% url 'pagina-panel-proveedor' %}" class="nav-link">Panel Proveedor</a>
+        {% endif %}
+    </li>
+
+    <li>
+        {% if request.resolver_match.url_name == 'pagina-mis-servicios' or request.resolver_match.url_name == 'pagina-servicio-nuevo' or request.resolver_match.url_name == 'pagina-servicio-editar' %}
+            <span class="nav-link active-link">Mis Servicios</span>
+        {% else %}
+            <a href="{% url 'pagina-mis-servicios' %}" class="nav-link">Mis Servicios</a>
+        {% endif %}
+    </li>
+
+    <li>
+        {% if request.resolver_match.url_name == 'pagina-zonas' %}
+            <span class="nav-link active-link">Zonas de Atención</span>
+        {% else %}
+            <a href="{% url 'pagina-zonas' %}" class="nav-link">Zonas de Atención</a>
+        {% endif %}
+    </li>
+
+    <li>
+        {% if request.resolver_match.url_name == 'pagina-perfil' %}
+            <span class="nav-link active-link">Mi Perfil</span>
+        {% else %}
+            <a href="{% url 'pagina-perfil' %}" class="nav-link">Mi Perfil</a>
+        {% endif %}
+    </li>
+
+    <li>
+        <button type="button" id="btn-cerrar-sesion" class="btn-nav-logout">Cerrar Sesión</button>
+    </li>
+</ul>

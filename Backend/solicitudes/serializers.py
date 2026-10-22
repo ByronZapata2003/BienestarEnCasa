@@ -5,11 +5,12 @@ from catalogo.models import Servicio  # Ajusta la importación según la ubicaci
 
 class SolicitudReservaSerializer(serializers.ModelSerializer):
     nombre_proveedor = serializers.SerializerMethodField()
+    cliente_nombre = serializers.SerializerMethodField()
 
     class Meta:
         model = SolicitudReserva
         fields = [
-            'id', 'cliente', 'proveedor', 'nombre_proveedor', 'servicio',
+            'id', 'cliente', 'cliente_nombre', 'proveedor', 'nombre_proveedor', 'servicio',
             'nombre_servicio_copia', 'precio_copia', 'duracion_minutos_copia',
             'fecha_solicitada', 'hora_solicitada', 'direccion_atencion',
             'barrio_sector', 'informacion_complementaria', 'observaciones',
@@ -20,6 +21,33 @@ class SolicitudReservaSerializer(serializers.ModelSerializer):
             'duracion_minutos_copia', 'estado', 'motivo_rechazo_cancelacion',
             'creado_en', 'actualizado_en'
         ]
+
+    def get_cliente_nombre(self, obj):
+        if not obj.cliente:
+            return "Usuario"
+
+        # 1. Nombre completo desde el modelo User de Django
+        first_name = getattr(obj.cliente, 'first_name', '')
+        last_name = getattr(obj.cliente, 'last_name', '')
+        nombre_completo = f"{first_name} {last_name}".strip()
+        if nombre_completo:
+            return nombre_completo
+
+        # 2. Nombre completo desde PerfilUsuario si existe
+        perfil = getattr(obj.cliente, 'perfil', None)
+        if perfil:
+            nom_p = getattr(perfil, 'nombres', '')
+            ape_p = getattr(perfil, 'apellidos', '')
+            completo_perfil = f"{nom_p} {ape_p}".strip()
+            if completo_perfil:
+                return completo_perfil
+
+        # 3. Nombre basado en email
+        email = getattr(obj.cliente, 'email', '')
+        if email:
+            return email.split('@')[0].capitalize()
+
+        return getattr(obj.cliente, 'username', 'Usuario')
 
     def get_nombre_proveedor(self, obj):
         if not obj.proveedor or not hasattr(obj.proveedor, 'perfil_usuario'):

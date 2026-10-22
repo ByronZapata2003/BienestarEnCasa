@@ -37,7 +37,7 @@ class ServicioGestionView(generics.RetrieveUpdateAPIView):
 class CategoriaViewSet(viewsets.ModelViewSet):
     queryset = Categoria.objects.all()
     serializer_class = CategoriaSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     #sirve para traer todas las categorias y llama a serilizer
 
 
@@ -61,15 +61,25 @@ class ServicioViewSet(viewsets.ModelViewSet):
         return filtrar_visibles(super().get_queryset(), self.request.user)
 
     def perform_create(self, serializer):
-        # HU-06: Validar que solo los proveedores asocien servicios a su catálogo
+        # HU-06: Validar y asignar el perfil proveedor al registrar servicios
         user = self.request.user
-        if not hasattr(user, 'perfil') or user.perfil.rol != 'PROVEEDOR':
-            raise PermissionDenied("No tienes permisos de proveedor para registrar servicios.")
+        
+        # 1. Asegurar que el perfil de usuario existe y tiene rol PROVEEDOR
+        perfil_usuario = getattr(user, 'perfil', None)
+        if not perfil_usuario:
+            raise PermissionDenied("El usuario no tiene un perfil asociado.")
+            
+        if perfil_usuario.rol != 'PROVEEDOR':
+            # Asignar rol PROVEEDOR automáticamente si está intentando crear servicios
+            perfil_usuario.rol = 'PROVEEDOR'
+            perfil_usuario.save()
 
-        if not hasattr(user.perfil, 'perfil_profesional'):
-            raise PermissionDenied("Primero debes registrar tu perfil profesional de proveedor.")
+        # 2. Obtener o crear el PerfilProveedor si no existe aún
+        from usuarios.models import PerfilProveedor
+        perfil_profesional, _ = PerfilProveedor.objects.get_or_create(perfil_usuario=perfil_usuario)
 
-        serializer.save(proveedor=user.perfil.perfil_profesional)
+        # 3. Guardar asignando el proveedor
+        serializer.save(proveedor=perfil_profesional)
 
     # HU-10: Detalle de servicio
     def retrieve(self, request, *args, **kwargs):

@@ -1,96 +1,259 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
+{% load static %}
 
-{% block title %}Zonas de Atención - BienestarEnCasa{% endblock %}
+{% block title %}Zonas de Atención - Bienestar en Casa{% endblock %}
 
-{% block body %}
-<div class="container">
-    <h1>Mis Zonas de Atención</h1>
-    <p>Indica los barrios o sectores donde prestas tus servicios.</p>
-
-    <!-- Mensajes de sistema -->
-    <div id="mensajes" aria-live="polite"></div>
-
-    <!-- Aviso cuando todavía no existe el perfil profesional -->
-    <div id="aviso-sin-perfil" hidden>
-        <p>Primero debes crear tu perfil profesional para poder registrar zonas de atención.</p>
-        <a href="{% url 'pagina-perfil-proveedor' %}" class="btn btn-primary">Crear Perfil Profesional</a>
-    </div>
-
-    <div id="contenido-zonas" hidden>
-        <!-- Formulario para agregar nueva zona -->
-        <div class="form-container">
-            <h2>Agregar Nueva Zona de Atención</h2>
-
-            <form id="form-zona" novalidate>
-                <div class="form-group">
-                    <label for="ciudad">Ciudad:</label>
-                    <input type="text" name="ciudad" id="ciudad" maxlength="100" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="barrio_sector">Barrio / Sector:</label>
-                    <input type="text" name="barrio_sector" id="barrio_sector" maxlength="150" required>
-                </div>
-
-                <div class="form-actions">
-                    <button type="submit" name="zona">Agregar Zona</button>
-                </div>
-            </form>
-        </div>
-
-        <!-- Listado de zonas existentes -->
-        <h2>Tus Zonas de Atención</h2>
-        <div id="lista-zonas"></div>
-    </div>
-</div>
+{% block header_nav %}
+    {% include 'nav_proveedor.html' %}
 {% endblock %}
 
-{% block extra_body %}
+{% block body %}
+<div style="background-color: #f8fafc; min-height: calc(100vh - 72px); padding: 2.5rem 1rem; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; box-sizing: border-box;">
+  <div style="max-width: 68rem; margin: 0 auto;">
+    
+    <div style="margin-bottom: 2rem;">
+      <h1 style="font-size: 2.25rem; font-weight: 800; color: #0f172a; margin: 0 0 0.25rem 0;">
+        Zonas de Atención
+      </h1>
+      <p style="color: #64748b; font-size: 0.95rem; margin: 0;">
+        Configura los municipios y sectores en los que prestas servicios a domicilio.
+      </p>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; align-items: start;">
+      
+      <!-- Formulario de creación de zona -->
+      <div style="background-color: #ffffff; border-radius: 1.25rem; border: 1px solid #e2e8f0; padding: 1.75rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+        <h2 style="font-size: 1.15rem; font-weight: 700; color: #0f172a; margin: 0 0 1.25rem 0;">
+          Agregar zona de cobertura
+        </h2>
+
+        <div id="msjZona"></div>
+
+        <form id="formZona">
+          {% csrf_token %}
+          <div style="margin-bottom: 1rem;">
+            <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #334155; margin-bottom: 0.4rem;">Ciudad / Municipio *</label>
+            <input type="text" id="inputCiudadZona" placeholder="Ej: Cali" required style="width: 100%; box-sizing: border-box; padding: 0.75rem 0.9rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; background-color: #f8fafc; font-size: 0.9rem; outline: none;">
+          </div>
+
+          <div style="margin-bottom: 1.25rem;">
+            <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #334155; margin-bottom: 0.4rem;">Sectores o Barrios cubiertos *</label>
+            <input type="text" id="inputSectoresZona" placeholder="Ej: San Fernando, Granada, Ciudad Jardín" required style="width: 100%; box-sizing: border-box; padding: 0.75rem 0.9rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; background-color: #f8fafc; font-size: 0.9rem; outline: none;">
+          </div>
+
+          <button type="submit" id="btnGuardarZona" style="width: 100%; background-color: #0d9488; color: #ffffff; font-weight: 700; padding: 0.8rem; border-radius: 0.75rem; border: none; font-size: 0.9rem; cursor: pointer; transition: background-color 0.2s ease;">
+            Guardar zona
+          </button>
+        </form>
+      </div>
+
+      <!-- Lista de zonas activas -->
+      <div>
+        <h2 style="font-size: 1.15rem; font-weight: 700; color: #0f172a; margin: 0 0 1rem 0;">
+          Tus zonas activas
+        </h2>
+        <div id="contenedorZonas" style="display: flex; flex-direction: column; gap: 0.85rem;">
+          <div style="background-color: #ffffff; border-radius: 1.25rem; border: 1px solid #e2e8f0; padding: 2rem; text-align: center; color: #64748b;">
+            Cargando zonas de atención...
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<!-- Modal Personalizado de Confirmación de Eliminación -->
+<div id="modalEliminarZona" style="display: none; position: fixed; inset: 0; background-color: rgba(15, 23, 42, 0.5); backdrop-filter: blur(4px); z-index: 9999; align-items: center; justify-content: center; padding: 1rem;">
+  <div style="background-color: #ffffff; border-radius: 1.25rem; max-width: 24rem; width: 100%; padding: 1.75rem; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); text-align: center; border: 1px solid #e2e8f0;">
+    
+    <div style="width: 3rem; height: 3rem; background-color: #fef2f2; color: #ef4444; border-radius: 9999px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto;">
+      <svg style="width: 1.5rem; height: 1.5rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+      </svg>
+    </div>
+
+    <h3 style="font-size: 1.15rem; font-weight: 800; color: #0f172a; margin: 0 0 0.5rem 0;">¿Eliminar zona?</h3>
+    <p style="color: #64748b; font-size: 0.875rem; margin: 0 0 1.5rem 0; line-height: 1.4;">
+      ¿Estás seguro de que deseas eliminar esta zona de atención? Esta acción no se puede deshacer.
+    </p>
+
+    <div style="display: flex; gap: 0.75rem;">
+      <button type="button" id="btnCancelarModalZona" style="flex: 1; background-color: #f1f5f9; color: #475569; font-weight: 700; padding: 0.7rem; border-radius: 0.75rem; border: none; font-size: 0.875rem; cursor: pointer; transition: background-color 0.2s ease;">
+        Cancelar
+      </button>
+      <button type="button" id="btnConfirmarModalZona" style="flex: 1; background-color: #ef4444; color: #ffffff; font-weight: 700; padding: 0.7rem; border-radius: 0.75rem; border: none; font-size: 0.875rem; cursor: pointer; transition: background-color 0.2s ease;">
+        Eliminar
+      </button>
+    </div>
+
+  </div>
+</div>
+
 <script>
-(function () {
-    var h = BEC.h;
-    var form = document.getElementById('form-zona');
-    var lista = document.getElementById('lista-zonas');
+document.addEventListener('DOMContentLoaded', function() {
+  const contenedor = document.getElementById('contenedorZonas');
+  const form = document.getElementById('formZona');
+  const msjBox = document.getElementById('msjZona');
+  const btnSubmit = document.getElementById('btnGuardarZona');
 
-    function cargar() {
-        BEC.api(BEC.cfg.api.zonas).then(function (res) {
-            if (res.status === 404) {   // el proveedor aún no tiene perfil profesional
-                document.getElementById('aviso-sin-perfil').hidden = false;
-                document.getElementById('contenido-zonas').hidden = true;
-                return;
-            }
-            if (!res.ok) { BEC.mensajeError(res); return; }
-            document.getElementById('aviso-sin-perfil').hidden = true;
-            document.getElementById('contenido-zonas').hidden = false;
-            pintar(BEC.lista(res.data));
-        });
-    }
+  // Modal de Confirmación
+  const modalEliminar = document.getElementById('modalEliminarZona');
+  const btnCancelarModal = document.getElementById('btnCancelarModalZona');
+  const btnConfirmarModal = document.getElementById('btnConfirmarModalZona');
+  let idZonaAEliminar = null;
 
-    function pintar(zonas) {
-        BEC.clear(lista);
-        if (!zonas.length) { lista.appendChild(h('p', { text: 'No tienes zonas de atención registradas.' })); return; }
-        lista.appendChild(h('table', { class: 'zona-table' },
-            h('thead', null, h('tr', null, h('th', { text: 'Ciudad' }), h('th', { text: 'Barrio/Sector' }))),
-            h('tbody', null, zonas.map(function (z) {
-                return h('tr', null, h('td', { text: z.ciudad }), h('td', { text: z.barrio_sector }));
-            }))));
-    }
+  const ENDPOINT_ZONAS = '/api/proveedores/mis-zonas/';
 
-    form.addEventListener('submit', function (e) {
-        e.preventDefault();
-        var datos = { ciudad: form.elements.ciudad.value.trim(), barrio_sector: form.elements.barrio_sector.value.trim() };
-        if (!datos.ciudad || !datos.barrio_sector) { BEC.mensaje('Ingresa la ciudad y el barrio/sector.', 'error'); return; }
-        BEC.ocupado(form, true);
-        BEC.api(BEC.cfg.api.zonas, { method: 'POST', body: datos }).then(function (res) {
-            BEC.ocupado(form, false);
-            if (!res.ok) { BEC.mensajeError(res); return; }
-            form.reset();
-            BEC.mensaje('La zona de atención fue agregada.', 'exito');
-            cargar();
-        });
+  function cargarZonas() {
+    if (!window.BEC || !window.BEC.api) return;
+
+    window.BEC.api(ENDPOINT_ZONAS).then(function(res) {
+      if (res && res.ok && res.data) {
+        const lista = window.BEC.lista ? window.BEC.lista(res.data) : (Array.isArray(res.data) ? res.data : []);
+        
+        if (lista.length === 0) {
+          contenedor.innerHTML = `
+            <div style="background-color: #ffffff; border-radius: 1rem; border: 1px solid #e2e8f0; padding: 2rem; text-align: center; color: #64748b;">
+              No tienes zonas de atención registradas aún.
+            </div>`;
+          return;
+        }
+
+        contenedor.innerHTML = lista.map(z => {
+          const ciudad = z.ciudad || z.municipio || z.nombre || 'Cali';
+          const sectores = z.barrio_sector || z.sectores || z.barrio || z.cobertura || 'Cobertura general';
+          const zonaId = z.id;
+
+          return `
+            <div style="background-color: #ffffff; border-radius: 1rem; border: 1px solid #e2e8f0; padding: 1.25rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+              <div>
+                <h3 style="font-size: 1rem; font-weight: 700; color: #0f172a; margin: 0 0 0.2rem 0;">${ciudad}</h3>
+                <p style="color: #64748b; font-size: 0.85rem; margin: 0;">${sectores}</p>
+              </div>
+
+              <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <span style="background-color: #f0fdf4; color: #166534; font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.65rem; border-radius: 9999px; border: 1px solid #bbf7d0;">
+                  Disponible
+                </span>
+
+                <button type="button" onclick="abrirModalEliminarZona(${zonaId})" title="Eliminar zona" style="background-color: #fef2f2; border: 1px solid #fecaca; color: #ef4444; width: 2.2rem; height: 2.2rem; border-radius: 0.6rem; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease;">
+                  <svg style="width: 1.1rem; height: 1.1rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } else {
+        contenedor.innerHTML = `
+          <div style="background-color: #ffffff; border-radius: 1rem; border: 1px solid #e2e8f0; padding: 2rem; text-align: center; color: #64748b;">
+            No tienes zonas de atención registradas aún.
+          </div>`;
+      }
     });
+  }
 
-    BEC.requiereSesion(['PROVEEDOR']).then(function (p) { if (p) { cargar(); } });
-})();
+  window.abrirModalEliminarZona = function(id) {
+    idZonaAEliminar = id;
+    if (modalEliminar) modalEliminar.style.display = 'flex';
+  };
+
+  function cerrarModalEliminarZona() {
+    idZonaAEliminar = null;
+    if (modalEliminar) modalEliminar.style.display = 'none';
+  }
+
+  if (btnCancelarModal) {
+    btnCancelarModal.addEventListener('click', cerrarModalEliminarZona);
+  }
+
+  if (btnConfirmarModal) {
+    btnConfirmarModal.addEventListener('click', function() {
+      if (!idZonaAEliminar) return;
+
+      const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
+      const csrfToken = csrfInput ? csrfInput.value : '';
+
+      // Probamos la ruta estándar de eliminación REST
+      const urlDelete = `/api/proveedores/mis-zonas/${idZonaAEliminar}/`;
+
+      fetch(urlDelete, {
+        method: 'DELETE',
+        headers: {
+          'X-CSRFToken': csrfToken,
+          'Content-Type': 'application/json'
+        },
+        credentials: 'same-origin'
+      }).then(function(res) {
+        cerrarModalEliminarZona();
+        if (res.ok || res.status === 204) {
+          cargarZonas();
+        } else {
+          // Si falla, intentamos la ruta directa alternativa de zonas
+          return fetch(`/api/zonas-cobertura/${idZonaAEliminar}/`, {
+            method: 'DELETE',
+            headers: { 'X-CSRFToken': csrfToken },
+            credentials: 'same-origin'
+          });
+        }
+      }).then(function(resAlt) {
+        if (resAlt && (resAlt.ok || resAlt.status === 204)) {
+          cargarZonas();
+        } else if (resAlt) {
+          msjBox.innerHTML = '<div style="color: #991b1b; background-color: #fef2f2; border: 1px solid #fecaca; font-size: 0.85rem; font-weight: 700; padding: 0.6rem; border-radius: 0.6rem; margin-bottom: 1rem;">No se pudo eliminar la zona de la base de datos. Verifique la vista en Django.</div>';
+        }
+      }).catch(function() {
+        cerrarModalEliminarZona();
+        msjBox.innerHTML = '<div style="color: #991b1b; background-color: #fef2f2; border: 1px solid #fecaca; font-size: 0.85rem; font-weight: 700; padding: 0.6rem; border-radius: 0.6rem; margin-bottom: 1rem;">Error de conexión.</div>';
+      });
+    });
+  }
+
+  if (form) {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      const ciudadVal = document.getElementById('inputCiudadZona').value.trim();
+      const sectoresVal = document.getElementById('inputSectoresZona').value.trim();
+
+      if (!ciudadVal || !sectoresVal) return;
+
+      btnSubmit.disabled = true;
+      btnSubmit.textContent = 'Guardando...';
+
+      const payload = {
+        ciudad: ciudadVal,
+        barrio_sector: sectoresVal,
+        sectores: sectoresVal
+      };
+
+      if (window.BEC && window.BEC.api) {
+        window.BEC.api(ENDPOINT_ZONAS, {
+          method: 'POST',
+          body: payload
+        }).then(function(res) {
+          btnSubmit.disabled = false;
+          btnSubmit.textContent = 'Guardar zona';
+
+          if (res && res.ok) {
+            form.reset();
+            msjBox.innerHTML = '<div style="color: #166534; background-color: #f0fdf4; border: 1px solid #bbf7d0; font-size: 0.85rem; font-weight: 700; padding: 0.6rem; border-radius: 0.6rem; margin-bottom: 1rem;">Zona agregada con éxito.</div>';
+            setTimeout(() => { msjBox.innerHTML = ''; }, 3000);
+            cargarZonas();
+          } else {
+            const err = (res.data && (res.data.detail || JSON.stringify(res.data))) ? (res.data.detail || JSON.stringify(res.data)) : 'No se pudo guardar la zona.';
+            msjBox.innerHTML = '<div style="color: #991b1b; background-color: #fef2f2; border: 1px solid #fecaca; font-size: 0.85rem; font-weight: 700; padding: 0.6rem; border-radius: 0.6rem; margin-bottom: 1rem;">' + err + '</div>';
+          }
+        });
+      }
+    });
+  }
+
+  cargarZonas();
+});
 </script>
 {% endblock %}

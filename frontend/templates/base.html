@@ -13,26 +13,19 @@
 </head>
 <body class="body-content">
 
-    <!-- Header Fijo de Extremo a Extremo estilo Figma -->
-    <header class="main-header">
-        <div class="header-container">
-            <a class="brand-logo" aria-label="BienestarEnCasa - Inicio">
-                <span class="logo-badge">B+</span> BienestarEnCasa
+    <!-- Header Fijo -->
+    <header class="main-header" style="width: 100%; background-color: #ffffff; border-bottom: 1px solid #e2e8f0; padding: 0.85rem 2rem; box-sizing: border-box;">
+        <div class="header-container" style="max-width: 1280px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between;">
+            <a href="{% url 'pagina-inicio' %}" class="brand-logo" style="display: flex; align-items: center; gap: 0.6rem; text-decoration: none;" aria-label="BienestarEnCasa - Inicio">
+                <span class="logo-badge" style="background-color: #1A68FF; color: #ffffff; font-weight: 800; font-size: 1.1rem; padding: 0.4rem 0.65rem; border-radius: 0.5rem; line-height: 1;">B+</span>
+                <span style="font-size: 1.2rem; font-weight: 800; color: #0f172a; letter-spacing: -0.02em;">BienestarEnCasa</span>
             </a>
             
             <nav class="main-nav" aria-label="Navegación principal">
                 {% block header_nav %}
-                <ul class="nav-list">
-                    <li data-solo="invitado"><button type="button" id="btn-abrir-login-modal" class="btn-nav-login">Iniciar sesión</button></li>
-                    <li data-solo="usuario" hidden><a href="{% url 'pagina-catalogo' %}" class="nav-link">Catálogo</a></li>
-                    <li data-solo="CLIENTE" hidden><a href="{% url 'pagina-mis-solicitudes' %}" class="nav-link">Mis Solicitudes</a></li>
-                    <li data-solo="CLIENTE" hidden><a href="{% url 'pagina-direcciones' %}" class="nav-link">Mis Direcciones</a></li>
-                    <li data-solo="PROVEEDOR" hidden><a href="{% url 'pagina-panel-proveedor' %}" class="nav-link">Panel Proveedor</a></li>
-                    <li data-solo="PROVEEDOR" hidden><a href="{% url 'pagina-mis-servicios' %}" class="nav-link">Mis Servicios</a></li>
-                    <li data-solo="PROVEEDOR" hidden><a href="{% url 'pagina-zonas' %}" class="nav-link">Zonas de Atención</a></li>
-                    <li data-solo="usuario" hidden><a href="{% url 'pagina-perfil' %}" class="nav-link">Mi Perfil</a></li>
-                    <li data-solo="usuario" hidden><button type="button" id="btn-cerrar-sesion" class="btn-nav-logout">Cerrar Sesión</button></li>
-                </ul>
+                    <ul class="nav-list" id="global-nav-list">
+                        <li><button type="button" id="btn-abrir-login-modal" class="btn-nav-login">Iniciar sesión</button></li>
+                    </ul>
                 {% endblock %}
             </nav>
         </div>
@@ -57,12 +50,21 @@
     </footer>
     {% endblock %}
 
-    <!-- Ventana Flotante / Modal Global de Iniciar Sesión y Registro -->
+    <!-- Plantillas HTML de Navbars según Sesión -->
+    <template id="tmpl-nav-cliente">
+        {% include 'nav_cliente.html' %}
+    </template>
+
+    <template id="tmpl-nav-proveedor">
+        {% include 'nav_proveedor.html' %}
+    </template>
+
+    <!-- Modal Global de Autenticación -->
     <div id="modalLogin" class="modal-login-overlay" aria-hidden="true">
         <div class="modal-login-container">
             <button type="button" class="btn-cerrar-modal" id="btnCerrarModal" aria-label="Cerrar modal">&times;</button>
             
-            <!-- VISTA INICIAR SESIÓN FLOTANTE -->
+            <!-- VISTA INICIAR SESIÓN -->
             <div id="vistaLoginModal">
                 <div class="login-logo-badge">B+</div>
                 <h2 class="login-title-text">Bienvenido</h2>
@@ -75,7 +77,8 @@
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                     </div>
 
-                    <form id="loginFormModal" novalidate>
+                    <form id="loginFormModal">
+                        {% csrf_token %}
                         <div class="form-group-field">
                             <label for="emailModal">Correo Electrónico</label>
                             <input type="email" id="emailModal" name="email" placeholder="ejemplo@correo.com" required>
@@ -92,7 +95,7 @@
                             </a>
                         </div>
 
-                        <button type="submit" class="btn-login-submit">Iniciar sesión</button>
+                        <button type="button" id="btnSubmitLogin" class="btn-login-submit">Iniciar sesión</button>
                     </form>
 
                     <p class="login-footer-register">
@@ -101,7 +104,7 @@
                 </div>
             </div>
 
-            <!-- VISTA REGISTRO FLOTANTE -->
+            <!-- VISTA REGISTRO -->
             <div id="vistaRegistroModal" style="display: none;">
                 <div class="login-logo-badge">B+</div>
                 <h2 class="login-title-text">Crea tu cuenta</h2>
@@ -110,7 +113,8 @@
                 <div class="login-card-box">
                     <div id="mensajesRegistroModal" aria-live="polite"></div>
 
-                    <form id="registroFormModal" novalidate>
+                    <form id="registroFormModal">
+                        {% csrf_token %}
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                             <div class="form-group-field">
                                 <label for="regNombres">Nombres</label>
@@ -158,285 +162,206 @@
         </div>
     </div>
 
-    <!-- Script Global window.BEC -->
+    <!-- Script de Autenticación Múltiple Endpoint Fallback -->
     <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        var rutaActual = window.location.pathname;
-        var enlacesNav = document.querySelectorAll('.nav-list .nav-link');
+(function() {
+    window.BEC = window.BEC || {};
 
-        enlacesNav.forEach(function(link) {
-            var href = link.getAttribute('href');
+    // Configuración global de Endpoints de la API y Vistas HTML
+    window.BEC.cfg = {
+        api: {
+            login: '/api/auth/iniciar-sesion/',
+            servicios: '/api/catalogo/servicios/',
+            solicitudes: '/api/solicitudes/',
+            direcciones: '/api/usuarios/direcciones/',
+            direccion: '/api/usuarios/direcciones/{id}/'
+        },
+        pages: {
+            solicitudCrear: '/solicitud/crear/{id}/'
+        }
+    };
 
-            // Comprueba si el enlace coincide con la ruta exacta donde está ubicado el usuario
-            if (href && (href === rutaActual || (href !== '/' && rutaActual.startsWith(href)))) {
-                link.classList.add('active-link'); // Aplica el recuadro y estilo activo
-                link.removeAttribute('href');       // Elimina la función de enlace (desactiva href)
-                link.setAttribute('aria-current', 'page');
+    // Helper para reemplazar IDs en plantillas de URLs
+    window.BEC.url = function(pattern, id) {
+        return pattern.replace('{id}', id);
+    };
+
+    // Helper para unificar listas devueltas por DRF o paginación
+    window.BEC.lista = function(data) {
+        if (Array.isArray(data)) return data;
+        if (data && Array.isArray(data.results)) return data.results;
+        if (data && Array.isArray(data.resultados)) return data.resultados;
+        return [];
+    };
+
+    // Helper centralizado de Peticiones API con token Bearer
+    window.BEC.api = function(url, options) {
+        options = options || {};
+        options.headers = options.headers || {};
+
+        function getCookie(name) {
+            var cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                var cookies = document.cookie.split(';');
+                for (var i = 0; i < cookies.length; i++) {
+                    var cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
             }
-        });
-    });
+            return cookieValue;
+        }
 
-    (function () {
-        'use strict';
+        var csrf = getCookie('csrftoken') || document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+        if (csrf && !options.headers['X-CSRFToken']) {
+            options.headers['X-CSRFToken'] = csrf;
+        }
 
-        var CFG = {
-            csrf: "{{ csrf_token }}",
-            api: {
-                registro: "{% url 'registro' %}",
-                iniciarSesion: "{% url 'iniciar-sesion' %}",
-                renovar: "{% url 'renovar-token' %}",
-                cerrarSesion: "{% url 'cerrar-sesion' %}",
-                miPerfil: "{% url 'mi-perfil' %}",
-                direcciones: "{% url 'direcciones' %}",
-                direccion: "{% url 'detalle-direccion' 0 %}",
-                perfilProveedor: "{% url 'mi-perfil-proveedor' %}",
-                zonas: "{% url 'mis-zonas-atencion' %}",
-                categorias: "{% url 'categoria-list' %}",
-                servicios: "{% url 'servicio-list' %}",
-                servicio: "{% url 'servicio-detail' 0 %}",
-                solicitudes: "{% url 'mis-solicitudes-list' %}",
-                solicitud: "{% url 'mis-solicitudes-detail' 0 %}"
-            },
-            pages: {
-                inicio: "{% url 'pagina-inicio' %}",
-                login: "{% url 'pagina-login' %}",
-                registro: "{% url 'pagina-registro' %}",
-                perfil: "{% url 'pagina-perfil' %}",
-                direcciones: "{% url 'pagina-direcciones' %}",
-                perfilProveedor: "{% url 'pagina-perfil-proveedor' %}",
-                panelProveedor: "{% url 'pagina-panel-proveedor' %}",
-                zonas: "{% url 'pagina-zonas' %}",
-                catalogo: "{% url 'pagina-catalogo' %}",
-                servicio: "{% url 'pagina-servicio' 0 %}",
-                misServicios: "{% url 'pagina-mis-servicios' %}",
-                servicioNuevo: "{% url 'pagina-servicio-nuevo' %}",
-                servicioEditar: "{% url 'pagina-servicio-editar' 0 %}",
-                solicitudCrear: "{% url 'pagina-solicitud-crear' 0 %}",
-                misSolicitudes: "{% url 'pagina-mis-solicitudes' %}",
-                solicitudDetalle: "{% url 'pagina-solicitud-detalle' 0 %}"
+        if (!options.headers['Content-Type'] && !(options.body instanceof FormData)) {
+            options.headers['Content-Type'] = 'application/json';
+        }
+
+        try {
+            var perfil = JSON.parse(localStorage.getItem('bec_perfil') || '{}');
+            var token = perfil.access || perfil.token || perfil.access_token;
+            if (token) {
+                options.headers['Authorization'] = 'Bearer ' + token;
             }
-        };
+        } catch(e) {}
 
-        var K = { perfil: 'bec_perfil', flash: 'bec_flash' };
+        options.credentials = 'same-origin';
 
-        function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
-        function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { } }
-        function lsDel(k) { try { localStorage.removeItem(k); } catch (e) { } }
-        function clearSession() { lsDel(K.perfil); }
-
-        function url(tpl, id) { return tpl.replace('/0/', '/' + encodeURIComponent(id) + '/'); }
-        function param(nombre) { return new URLSearchParams(window.location.search).get(nombre); }
-
-        function h(tag, props) {
-            var el = document.createElement(tag);
-            if (props) {
-                Object.keys(props).forEach(function (k) {
-                    var v = props[k];
-                    if (v === false || v === null || v === undefined) { return; }
-                    if (k === 'text') { el.textContent = v; }
-                    else if (k === 'class') { el.className = v; }
-                    else if (k.slice(0, 2) === 'on') { el.addEventListener(k.slice(2), v); }
-                    else if (v === true) { el.setAttribute(k, ''); }
-                    else { el.setAttribute(k, v); }
-                });
-            }
-            for (var i = 2; i < arguments.length; i++) { addChild(el, arguments[i]); }
-            return el;
-        }
-        function addChild(el, c) {
-            if (c === null || c === undefined || c === false) { return; }
-            if (Array.isArray(c)) { c.forEach(function (x) { addChild(el, x); }); return; }
-            el.appendChild(typeof c === 'object' ? c : document.createTextNode(String(c)));
-        }
-        function clear(el) { while (el.firstChild) { el.removeChild(el.firstChild); } }
-
-        function mensaje(textos, tipo, contenedor) {
-            var box = contenedor || document.getElementById('mensajes');
-            if (!box) { return; }
-            clear(box);
-            var lista = Array.isArray(textos) ? textos : [textos];
-            if (!lista.length) { return; }
-            var rol = tipo === 'error' ? 'alert' : 'status';
-            box.appendChild(h('ul', { class: 'mensaje mensaje-' + (tipo || 'info'), role: rol },
-                lista.map(function (t) { return h('li', { text: t }); })));
-        }
-        function mensajeError(res, contenedor) {
-            var l = (res && res.data && res.data.detail) ? [res.data.detail] : ['Credenciales incorrectas o error en el servidor.'];
-            mensaje(l, 'error', contenedor);
+        if (options.body && typeof options.body === 'object' && !(options.body instanceof FormData)) {
+            options.body = JSON.stringify(options.body);
         }
 
-        function request(u, opts) {
-            opts = opts || {};
-            var headers = { 'Accept': 'application/json' };
-            if (opts.body !== undefined) { headers['Content-Type'] = 'application/json'; }
-            if (opts.method && opts.method !== 'GET') { headers['X-CSRFToken'] = CFG.csrf; }
-            
-            return fetch(u, {
-                method: opts.method || 'GET',
-                headers: headers,
-                credentials: 'same-origin',
-                body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
-            }).then(function (res) {
-                return res.json().catch(function () { return null; }).then(function (data) {
-                    return { ok: res.ok, status: res.status, data: data };
-                });
+        return fetch(url, options).then(function(res) {
+            return res.json().then(function(data) {
+                return { ok: res.ok, status: res.status, data: data };
+            }).catch(function() {
+                return { ok: res.ok, status: res.status, data: null };
             });
-        }
-
-        function perfilCache() {
-            try { return JSON.parse(lsGet(K.perfil) || 'null'); } catch (e) { return null; }
-        }
-
-        function inicioPorRol(rol) {
-            return rol === 'PROVEEDOR' ? CFG.pages.panelProveedor : CFG.pages.perfil;
-        }
-
-        function pintarNav() {
-            var p = perfilCache();
-            var items = document.querySelectorAll('[data-solo]');
-            for (var i = 0; i < items.length; i++) {
-                var d = items[i].getAttribute('data-solo');
-                var ver = (d === 'invitado') ? !p : (d === 'usuario') ? !!p : (!!p && p.rol === d);
-                if (ver) { items[i].removeAttribute('hidden'); } else { items[i].setAttribute('hidden', ''); }
-            }
-        }
-
-        function cerrarSesion() {
-            request(CFG.api.cerrarSesion, { method: 'POST', auth: false }).then(function() {
-                clearSession();
-                window.location.href = CFG.pages.inicio || '/';
-            });
-        }
-
-        function ocupado(form, si) {
-            var b = form.querySelector('button[type="submit"]');
-            if (b) { b.disabled = !!si; }
-        }
-
-        window.BEC = {
-            cfg: CFG, api: request, url: url, param: param, h: h, clear: clear,
-            mensaje: mensaje, mensajeError: mensajeError, perfilCache: perfilCache,
-            inicioPorRol: inicioPorRol, cerrarSesion: cerrarSesion, pintarNav: pintarNav, ocupado: ocupado
-        };
-
-        document.addEventListener('DOMContentLoaded', function () {
-            pintarNav();
-            var b = document.getElementById('btn-cerrar-sesion');
-            if (b) { b.addEventListener('click', cerrarSesion); }
         });
-    })();
+    };
 
-    /* Eventos para Abrir / Cerrar el Modal Flotante */
+    window.BEC.cerrarSesion = function() {
+        localStorage.removeItem('bec_perfil');
+        window.location.href = "{% url 'pagina-inicio' %}";
+    };
+
     document.addEventListener('DOMContentLoaded', function() {
-        var modal = document.getElementById('modalLogin');
-        var btnCerrar = document.getElementById('btnCerrarModal');
-        var vistaLogin = document.getElementById('vistaLoginModal');
-        var vistaRegistro = document.getElementById('vistaRegistroModal');
-        var linkRegistro = document.getElementById('linkIrARegistro');
-        var linkLogin = document.getElementById('linkIrALogin');
+        var urlPanelProveedor = "{% url 'pagina-panel-proveedor' %}";
+        var urlPanelCliente = "{% url 'pagina-perfil' %}";
 
-        var formLoginModal = document.getElementById('loginFormModal');
-        var formRegistroModal = document.getElementById('registroFormModal');
+        document.body.addEventListener('click', function(e) {
+            var modal = document.getElementById('modalLogin');
+            var vistaLogin = document.getElementById('vistaLoginModal');
+            var vistaRegistro = document.getElementById('vistaRegistroModal');
 
-        // Abrir Modal al hacer clic en Iniciar Sesión en la barra
-        document.addEventListener('click', function(e) {
             if (e.target && (e.target.id === 'btn-abrir-login-modal' || e.target.classList.contains('btn-nav-login'))) {
                 e.preventDefault();
                 if (modal) {
-                    vistaLogin.style.display = 'block';
-                    vistaRegistro.style.display = 'none';
                     modal.classList.add('activo');
+                    modal.setAttribute('aria-hidden', 'false');
                 }
+            }
+            if (e.target && e.target.id === 'btnCerrarModal') {
+                if (modal) {
+                    modal.classList.remove('activo');
+                    modal.setAttribute('aria-hidden', 'true');
+                }
+            }
+            if (e.target && e.target.id === 'linkIrARegistro') {
+                e.preventDefault();
+                if (vistaLogin && vistaRegistro) {
+                    vistaLogin.style.display = 'none';
+                    vistaRegistro.style.display = 'block';
+                }
+            }
+            if (e.target && e.target.id === 'linkIrALogin') {
+                e.preventDefault();
+                if (vistaLogin && vistaRegistro) {
+                    vistaRegistro.style.display = 'none';
+                    vistaLogin.style.display = 'block';
+                }
+            }
+            if (e.target && e.target.id === 'btn-cerrar-sesion') {
+                window.BEC.cerrarSesion();
             }
         });
 
-        if (linkRegistro) {
-            linkRegistro.addEventListener('click', function(e) {
-                e.preventDefault();
-                vistaLogin.style.display = 'none';
-                vistaRegistro.style.display = 'block';
-            });
-        }
+        var btnSubmit = document.getElementById('btnSubmitLogin');
+        if (btnSubmit) {
+            btnSubmit.addEventListener('click', function() {
+                var emailInput = document.getElementById('emailModal');
+                var passInput = document.getElementById('passwordModal');
+                var msgBox = document.getElementById('mensajesModal');
 
-        if (linkLogin) {
-            linkLogin.addEventListener('click', function(e) {
-                e.preventDefault();
-                vistaRegistro.style.display = 'none';
-                vistaLogin.style.display = 'block';
-            });
-        }
+                var email = emailInput ? emailInput.value.trim() : '';
+                var password = passInput ? passInput.value.trim() : '';
 
-        if (btnCerrar) {
-            btnCerrar.addEventListener('click', function() { if (modal) modal.classList.remove('activo'); });
-        }
-        if (modal) {
-            modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('activo'); });
-        }
-
-        // Envío de Formulario Iniciar Sesión desde el Modal -> Redirige al Perfil correspondiente
-        if (formLoginModal) {
-            formLoginModal.addEventListener('submit', function(e) {
-                e.preventDefault();
-                var emailInput = document.getElementById('emailModal').value.trim();
-                var passInput = document.getElementById('passwordModal').value;
-
-                var datos = { username: emailInput, email: emailInput, password: passInput };
-
-                if (!datos.email || !datos.password) {
-                    window.BEC.mensaje('Ingresa tu correo y contraseña.', 'error', document.getElementById('mensajesModal'));
+                if (!email || !password) {
+                    if (msgBox) msgBox.innerHTML = '<div style="color: #ef4444; font-weight: 700; font-size: 0.85rem; margin-bottom: 0.5rem;">Ingresa correo y contraseña.</div>';
                     return;
                 }
 
-                window.BEC.ocupado(formLoginModal, true);
+                btnSubmit.disabled = true;
+                btnSubmit.textContent = 'Autenticando...';
 
-                window.BEC.api(window.BEC.cfg.api.iniciarSesion, { method: 'POST', body: datos }).then(function(res) {
-                    window.BEC.ocupado(formLoginModal, false);
+                window.BEC.api(window.BEC.cfg.api.login, {
+                    method: 'POST',
+                    body: { email: email, password: password }
+                }).then(function(res) {
                     if (res.ok) {
-                        if (res.data) {
-                            try { localStorage.setItem('bec_perfil', JSON.stringify(res.data)); } catch (e) {}
+                        var usuario = res.data.perfil || res.data.usuario || res.data.user || res.data;
+                        if (res.data.access) usuario.access = res.data.access;
+                        
+                        localStorage.setItem('bec_perfil', JSON.stringify(usuario));
+                        var rol = (usuario && usuario.rol) ? usuario.rol.toUpperCase() : '';
+
+                        if (rol === 'PROVEEDOR' || rol === 'PRO') {
+                            window.location.href = urlPanelProveedor;
+                        } else {
+                            window.location.href = urlPanelCliente;
                         }
-                        var destino = res.data && res.data.rol ? window.BEC.inicioPorRol(res.data.rol) : (window.BEC.cfg.pages.perfil || '/mi-perfil/');
-                        window.location.href = destino;
                     } else {
-                        window.BEC.mensajeError(res, document.getElementById('mensajesModal'));
+                        btnSubmit.disabled = false;
+                        btnSubmit.textContent = 'Iniciar sesión';
+                        var errMsj = (res.data && (res.data.detail || res.data.error || res.data.non_field_errors || res.data.mensaje))
+                            ? (res.data.detail || res.data.error || res.data.non_field_errors || res.data.mensaje)
+                            : 'Correo o contraseña incorrectos.';
+                        if (msgBox) msgBox.innerHTML = '<div style="color: #ef4444; font-weight: 700; font-size: 0.85rem; margin-bottom: 0.5rem;">' + errMsj + '</div>';
                     }
+                }).catch(function() {
+                    btnSubmit.disabled = false;
+                    btnSubmit.textContent = 'Iniciar sesión';
+                    if (msgBox) msgBox.innerHTML = '<div style="color: #ef4444; font-weight: 700; font-size: 0.85rem; margin-bottom: 0.5rem;">Error al conectar con el servidor.</div>';
                 });
             });
         }
 
-        // Envío de Formulario Registro desde el Modal
-        if (formRegistroModal) {
-            formRegistroModal.addEventListener('submit', function(e) {
-                e.preventDefault();
-                var payload = {
-                    nombres: document.getElementById('regNombres').value.trim(),
-                    apellidos: document.getElementById('regApellidos').value.trim(),
-                    email: document.getElementById('regEmail').value.trim(),
-                    rol: document.getElementById('regRol').value,
-                    password: document.getElementById('regPassword').value,
-                    password_confirmacion: document.getElementById('regPasswordConfirm').value
-                };
-
-                window.BEC.ocupado(formRegistroModal, true);
-
-                window.BEC.api(window.BEC.cfg.api.registro, { method: 'POST', body: payload }).then(function(res) {
-                    window.BEC.ocupado(formRegistroModal, false);
-                    if (res.ok) {
-                        if (res.data) {
-                            try { localStorage.setItem('bec_perfil', JSON.stringify(res.data)); } catch (e) {}
-                        }
-                        var destino = res.data && res.data.rol ? window.BEC.inicioPorRol(res.data.rol) : (window.BEC.cfg.pages.perfil || '/mi-perfil/');
-                        window.location.href = destino;
-                    } else {
-                        window.BEC.mensajeError(res, document.getElementById('mensajesRegistroModal'));
+        try {
+            var perfilStr = localStorage.getItem('bec_perfil');
+            if (perfilStr) {
+                var perfil = JSON.parse(perfilStr);
+                var rol = (perfil && perfil.rol) ? perfil.rol.toUpperCase() : '';
+                var navContainer = document.querySelector('.main-nav');
+                if (navContainer && rol) {
+                    var templateId = (rol === 'PROVEEDOR' || rol === 'PRO') ? 'tmpl-nav-proveedor' : 'tmpl-nav-cliente';
+                    var template = document.getElementById(templateId);
+                    if (template) {
+                        navContainer.innerHTML = template.innerHTML;
                     }
-                });
-            });
-        }
+                }
+            }
+        } catch(e) {}
     });
-    </script>
+})();
+</script>
 
-    <!-- Estilos CSS para el Modal Flotante Centrado -->
+    <!-- Estilos CSS Modal -->
     <style>
     .nav-link.active-link {
         border: 1.5px solid #2563eb !important;
@@ -617,6 +542,19 @@
     .modal-login-container .login-footer-register a:hover {
         text-decoration: underline;
     }
+    
+    .main-nav ul, .nav-list {
+    display: flex !important;
+    align-items: center !important;
+    gap: 1.25rem !important;
+    list-style: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.nav-link {
+    white-space: nowrap !important;
+}
     </style>
 </body>
 </html>

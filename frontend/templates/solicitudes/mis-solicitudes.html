@@ -4,14 +4,7 @@
 {% block title %}Mis Solicitudes - Bienestar en Casa{% endblock %}
 
 {% block header_nav %}
-<!-- Navbar fija para la sesión privada del cliente -->
-<ul class="nav-list">
-    <li><a href="{% url 'pagina-catalogo' %}" class="nav-link">Catálogo</a></li>
-    <li><a href="{% url 'pagina-mis-solicitudes' %}" class="nav-link">Mis Solicitudes</a></li>
-    <li><a href="{% url 'pagina-direcciones' %}" class="nav-link">Mis Direcciones</a></li>
-    <li><a href="{% url 'pagina-perfil' %}" class="nav-link">Mi Perfil</a></li>
-    <li><button type="button" id="btn-cerrar-sesion" class="btn-nav-logout">Cerrar Sesión</button></li>
-</ul>
+    {% include 'nav_cliente.html' %}
 {% endblock %}
 
 {% block body %}
@@ -87,14 +80,138 @@
 document.addEventListener('DOMContentLoaded', function() {
   const contenedor = document.getElementById('contenedorSolicitudes');
   const inputBuscar = document.getElementById('inputBuscar');
+  const selectCategoria = document.getElementById('selectCategoria');
   const btnLogout = document.getElementById('btn-cerrar-sesion');
+  
   let todasLasSolicitudes = [];
+  let mapaServicios = {}; // id -> { nombre, categoria }
+  let mapaCategorias = {}; // id -> nombre
 
-  // Asignar evento de cerrar sesión
   if (btnLogout && window.BEC && window.BEC.cerrarSesion) {
     btnLogout.addEventListener('click', function() {
       window.BEC.cerrarSesion();
     });
+  }
+
+  // Cargar categorías y servicios para mapear los IDs con los nombres reales
+  function cargarCatalogoYSolicitudes() {
+    var urlServicios = (window.BEC && window.BEC.cfg && window.BEC.cfg.api && window.BEC.cfg.api.servicios) ? window.BEC.cfg.api.servicios : '/api/catalogo/servicios/';
+    var urlCategorias = '/api/catalogo/categorias/';
+
+    Promise.all([
+      fetch(urlCategorias).then(r => r.ok ? r.json() : []).catch(() => []),
+      fetch(urlServicios).then(r => r.ok ? r.json() : []).catch(() => [])
+    ]).then(function(respuestas) {
+      // 1. Mapear Categorías
+      var listaCats = Array.isArray(respuestas[0]) ? respuestas[0] : (respuestas[0].results || []);
+      if (selectCategoria && listaCats.length > 0) {
+        selectCategoria.innerHTML = '<option value="">Todas las categorías</option>' + 
+          listaCats.map(c => `<option value="${c.nombre}">${c.nombre}</option>`).join('');
+      }
+      listaCats.forEach(c => {
+        mapaCategorias[c.id] = c.nombre;
+      });
+
+      // 2. Mapear Servicios
+      var dataServicios = respuestas[1];
+      var listaServicios = window.BEC && window.BEC.lista ? window.BEC.lista(dataServicios) : (Array.isArray(dataServicios) ? dataServicios : (dataServicios.results || []));
+      
+      listaServicios.forEach(function(s) {
+        var nombreCat = 'Categoría General';
+        if (s.categoria_detalle && s.categoria_detalle.nombre) {
+          nombreCat = s.categoria_detalle.nombre;
+        } else if (s.categoria) {
+          if (typeof s.categoria === 'object' && s.categoria.nombre) nombreCat = s.categoria.nombre;
+          else if (typeof s.categoria === 'string') nombreCat = s.categoria;
+          else if (mapaCategorias[s.categoria]) nombreCat = mapaCategorias[s.categoria];
+        } else if (s.categoria_nombre) {
+          nombreCat = s.categoria_nombre;
+        }
+
+        mapaServicios[s.id] = {
+          nombre: s.nombre || s.titulo || s.nombre_servicio || 'Servicio de Bienestar',
+          categoria: nombreCat
+        };
+      });
+
+      // 3. Cargar solicitudes reales
+      cargarSolicitudesReales();
+    }).catch(function() {
+      cargarSolicitudesReales();
+    });
+  }
+
+  function obtenerNombreServicio(sol) {
+    if (!sol) return 'Servicio de Bienestar';
+
+    if (sol.servicio_nombre) return sol.servicio_nombre;
+    if (sol.nombre_servicio) return sol.nombre_servicio;
+    if (sol.servicio && typeof sol.servicio === 'object') {
+      if (sol.servicio.nombre) return sol.servicio.nombre;
+      if (sol.servicio.titulo) return sol.servicio.titulo;
+    }
+    if (typeof sol.servicio === 'string' && isNaN(sol.servicio)) return sol.servicio;
+
+    if (sol.servicio && mapaServicios[sol.servicio]) {
+      return mapaServicios[sol.servicio].nombre;
+    }
+
+    return 'Servicio de Bienestar';
+  }
+
+  function obtenerCategoria(sol) {
+    if (!sol) return 'Categoría General';
+
+    // 1. Si viene especificado en la solicitud
+    if (sol.categoria_nombre) return sol.categoria_nombre;
+    if (sol.servicio && typeof sol.servicio === 'object') {
+      if (sol.servicio.categoria_detalle && sol.servicio.categoria_detalle.nombre) return sol.servicio.categoria_detalle.nombre;
+      if (typeof sol.servicio.categoria === 'object' && sol.servicio.categoria.nombre) return sol.servicio.categoria.nombre;
+      if (typeof sol.servicio.categoria === 'string') return sol.servicio.categoria;
+    }
+
+    // 2. Buscar en el mapa de servicios por ID
+    var servId = sol.servicio && typeof sol.servicio === 'object' ? sol.servicio.id : sol.servicio;
+    if (servId && mapaServicios[servId]) {
+      return mapaServicios[servId].categoria;
+    }
+
+    // 3. Mapeo de respaldo por nombres conocidos
+    var servNombre = obtenerNombreServicio(sol).toLowerCase();
+    if (servNombre.includes('corte') || servNombre.includes('pelo') || servNombre.includes('cabello') || servNombre.includes('barba')) return 'Peluquería';
+    if (servNombre.includes('masaje') || servNombre.includes('espalda')) return 'Masajes no Médicos';
+    if (servNombre.includes('manicure') || servNombre.includes('pedicure') || servNombre.includes('uña')) return 'Manicure y pedicure';
+    if (servNombre.includes('spa') || servNombre.includes('terapia')) return 'Terapias corporales y spa';
+
+    return 'Categoría General';
+  }
+
+  function obtenerNombreProveedor(sol) {
+    if (!sol) return 'Por asignar';
+
+    if (sol.proveedor_nombre) return sol.proveedor_nombre;
+    if (sol.nombre_proveedor) return sol.nombre_proveedor;
+    if (sol.proveedor && typeof sol.proveedor === 'object') {
+      const nombres = sol.proveedor.nombres || sol.proveedor.first_name || '';
+      const apellidos = sol.proveedor.apellidos || sol.proveedor.last_name || '';
+      const completo = (nombres + ' ' + apellidos).trim();
+      if (completo) return completo;
+      if (sol.proveedor.nombre) return sol.proveedor.nombre;
+    }
+    return 'Por asignar';
+  }
+
+  function obtenerFechaServicio(sol) {
+    const rawFecha = sol.fecha_solicitada || sol.fecha_preferida || sol.fecha_servicio || sol.fecha || sol.creado_en;
+    if (!rawFecha) return 'Fecha por confirmar';
+
+    try {
+      const d = new Date(rawFecha + (rawFecha.includes('T') ? '' : 'T00:00:00'));
+      if (isNaN(d.getTime())) return rawFecha;
+      return d.toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric' });
+    } catch(e) {
+      return rawFecha;
+    }
   }
 
   function renderizarSolicitudes(lista) {
@@ -102,21 +219,20 @@ document.addEventListener('DOMContentLoaded', function() {
       contenedor.innerHTML = `
         <div style="text-align: center; padding: 3rem; background: #ffffff; border-radius: 1.25rem; border: 1px solid #e2e8f0; color: #64748b;">
           <p style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem; color: #0f172a;">No tienes solicitudes registradas</p>
-          <p style="font-size: 0.9rem; margin: 0;">Crea una nueva solicitud desde el panel principal o el catálogo.</p>
+          <p style="font-size: 0.9rem; margin: 0;">Crea una nueva solicitud desde el catálogo.</p>
         </div>
       `;
       return;
     }
 
     contenedor.innerHTML = lista.map(sol => {
-      const servicioNombre = sol.servicio_nombre || (sol.servicio ? sol.servicio.nombre : 'Servicio Solicitado');
-      const descripcion = sol.notas_adicionales || sol.descripcion || 'Servicio agendado a domicilio.';
-      const fecha = sol.fecha_preferida || sol.fecha || 'Fecha por confirmar';
-      const categoria = sol.categoria_nombre || (sol.servicio && sol.servicio.categoria ? sol.servicio.categoria.nombre : 'Atención a domicilio');
-      const proveedor = sol.proveedor_nombre || (sol.proveedor ? sol.proveedor.nombre : 'Por asignar');
+      const servicioNombre = obtenerNombreServicio(sol);
+      const categoria = obtenerCategoria(sol);
+      const fecha = obtenerFechaServicio(sol);
+      const proveedor = obtenerNombreProveedor(sol);
       const estado = (sol.estado || 'PENDIENTE').toUpperCase();
 
-      const esRealizado = estado === 'REALIZADO' || estado === 'COMPLETADO';
+      const esRealizado = estado === 'REALIZADO' || estado === 'COMPLETADO' || estado === 'FINALIZADO';
 
       return `
         <div style="background-color: #ffffff; border-radius: 1.25rem; border: 1px solid #e2e8f0; padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
@@ -127,8 +243,12 @@ document.addEventListener('DOMContentLoaded', function() {
               </svg>
             </div>
             <div>
+              <!-- NOMBRE DEL SERVICIO (Manicure, Masaje, etc.) -->
               <h3 style="font-size: 1.25rem; font-weight: 700; color: #0f172a; margin: 0 0 0.35rem 0;">${servicioNombre}</h3>
-              <p style="color: #64748b; font-size: 0.9rem; margin: 0 0 0.85rem 0;">${descripcion}</p>
+              
+              <!-- NOMBRE DE LA CATEGORÍA (Peluquería, Masajes no Médicos, etc.) DEBAJO DEL TÍTULO -->
+              <p style="color: #64748b; font-size: 0.9rem; margin: 0 0 0.85rem 0;">${categoria}</p>
+              
               <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; font-size: 0.85rem; color: #64748b;">
                 <span style="display: inline-flex; align-items: center; gap: 0.35rem;">
                   <svg style="width: 1rem; height: 1rem; color: #94a3b8;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -136,7 +256,7 @@ document.addEventListener('DOMContentLoaded', function() {
                   </svg>
                   ${fecha}
                 </span>
-                <span style="background-color: #f1f5f9; color: #334155; font-weight: 600; padding: 0.2rem 0.6rem; border-radius: 0.5rem; font-size: 0.8rem;">${categoria}</span>
+                <span style="background-color: #f1f5f9; color: #334155; font-weight: 600; padding: 0.2rem 0.6rem; border-radius: 0.5rem; font-size: 0.8rem;">Atención a domicilio</span>
                 <span>Atendido por <strong>${proveedor}</strong></span>
               </div>
             </div>
@@ -145,14 +265,8 @@ document.addEventListener('DOMContentLoaded', function() {
           <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; justify-content: flex-end;">
             ${esRealizado ? `
               <span style="background-color: #dcfce7; color: #166534; font-size: 0.8rem; font-weight: 700; padding: 0.35rem 0.85rem; border-radius: 9999px;">Realizado</span>
-              <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                <a href="#" style="background-color: #0f172a; color: #ffffff; font-weight: 600; padding: 0.5rem 1rem; border-radius: 0.65rem; text-decoration: none; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.4rem; justify-content: center;">
-                  Comprobante
-                </a>
-                <a href="/mis-solicitudes/${sol.id}/" style="background-color: #ffffff; border: 1px solid #e2e8f0; color: #0f172a; font-weight: 600; padding: 0.45rem 1rem; border-radius: 0.65rem; text-decoration: none; font-size: 0.85rem; text-align: center;">Ver detalles</a>
-              </div>
             ` : `
-              <span style="background-color: #fef9c3; color: #854d0e; font-size: 0.8rem; font-weight: 700; padding: 0.35rem 0.85rem; border-radius: 9999px;">Pendiente</span>
+              <span style="background-color: #fef9c3; color: #854d0e; font-size: 0.8rem; font-weight: 700; padding: 0.35rem 0.85rem; border-radius: 9999px;">${estado}</span>
               <button disabled style="background-color: #64748b; color: #ffffff; font-weight: 600; padding: 0.6rem 1.25rem; border-radius: 0.75rem; border: none; font-size: 0.875rem; cursor: not-allowed;">
                 En proceso...
               </button>
@@ -163,39 +277,42 @@ document.addEventListener('DOMContentLoaded', function() {
     }).join('');
   }
 
-  // Cargar solicitudes reales del backend mediante window.BEC
   function cargarSolicitudesReales() {
-    if (window.BEC && window.BEC.api) {
-      var urlApi = (window.BEC.cfg && window.BEC.cfg.api && window.BEC.cfg.api.solicitudes) ? window.BEC.cfg.api.solicitudes : '/api/solicitudes/';
-      
-      window.BEC.api(urlApi).then(function(res) {
-        if (res && res.ok && res.data) {
-          todasLasSolicitudes = window.BEC.lista ? window.BEC.lista(res.data) : (Array.isArray(res.data) ? res.data : (res.data.results || []));
-          renderizarSolicitudes(todasLasSolicitudes);
-        } else {
-          renderizarSolicitudes([]);
-        }
-      }).catch(function() {
+    var urlApi = (window.BEC && window.BEC.cfg && window.BEC.cfg.api && window.BEC.cfg.api.solicitudes) ? window.BEC.cfg.api.solicitudes : '/api/solicitudes/';
+    
+    fetch(urlApi)
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        todasLasSolicitudes = window.BEC && window.BEC.lista ? window.BEC.lista(data) : (Array.isArray(data) ? data : (data.results || []));
+        renderizarSolicitudes(todasLasSolicitudes);
+      })
+      .catch(function() {
         renderizarSolicitudes([]);
       });
-    } else {
-      renderizarSolicitudes([]);
-    }
   }
 
-  // Búsqueda dinámica
-  if (inputBuscar) {
-    inputBuscar.addEventListener('input', function(e) {
-      const query = e.target.value.toLowerCase().trim();
-      const filtradas = todasLasSolicitudes.filter(s => {
-        const texto = ((s.servicio_nombre || '') + ' ' + (s.proveedor_nombre || '') + ' ' + (s.descripcion || '')).toLowerCase();
-        return texto.includes(query);
-      });
-      renderizarSolicitudes(filtradas);
+  function filtrarSolicitudes() {
+    const query = inputBuscar ? inputBuscar.value.toLowerCase().trim() : '';
+    const catFiltro = selectCategoria ? selectCategoria.value : '';
+
+    const filtradas = todasLasSolicitudes.filter(s => {
+      const servicio = obtenerNombreServicio(s).toLowerCase();
+      const proveedor = obtenerNombreProveedor(s).toLowerCase();
+      const cat = obtenerCategoria(s);
+
+      const coincideBusqueda = !query || servicio.includes(query) || proveedor.includes(query) || cat.toLowerCase().includes(query);
+      const coincideCategoria = !catFiltro || cat === catFiltro;
+
+      return coincideBusqueda && coincideCategoria;
     });
+
+    renderizarSolicitudes(filtradas);
   }
 
-  cargarSolicitudesReales();
+  if (inputBuscar) inputBuscar.addEventListener('input', filtrarSolicitudes);
+  if (selectCategoria) selectCategoria.addEventListener('change', filtrarSolicitudes);
+
+  cargarCatalogoYSolicitudes();
 });
 </script>
 {% endblock %}

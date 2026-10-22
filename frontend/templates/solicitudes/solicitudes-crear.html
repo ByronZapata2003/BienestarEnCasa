@@ -4,14 +4,7 @@
 {% block title %}Solicitar servicio - Bienestar en Casa{% endblock %}
 
 {% block header_nav %}
-<!-- Navbar fija para la sesión privada del cliente -->
-<ul class="nav-list">
-    <li><a href="{% url 'pagina-catalogo' %}" class="nav-link">Catálogo</a></li>
-    <li><a href="{% url 'pagina-mis-solicitudes' %}" class="nav-link">Mis Solicitudes</a></li>
-    <li><a href="{% url 'pagina-direcciones' %}" class="nav-link">Mis Direcciones</a></li>
-    <li><a href="{% url 'pagina-perfil' %}" class="nav-link">Mi Perfil</a></li>
-    <li><button type="button" id="btn-cerrar-sesion" class="btn-nav-logout">Cerrar Sesión</button></li>
-</ul>
+    {% include 'nav_cliente.html' %}
 {% endblock %}
 
 {% block body %}
@@ -74,6 +67,16 @@
           margin-top: 0.4rem;
           display: none;
         }
+        .service-summary-card {
+          background-color: #f0f9ff;
+          border: 1px solid #bae6fd;
+          border-radius: 0.85rem;
+          padding: 1rem 1.25rem;
+          margin-bottom: 1.25rem;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
       </style>
 
       <!-- Columna Izquierda: Formulario -->
@@ -119,6 +122,22 @@
               Detalles del servicio
             </h2>
 
+            <!-- TARJETA INFORMATIVA DEL SERVICIO SELECCIONADO (Sin select) -->
+            <!-- SERVICIO SELECCIONADO (Diseño Sobrio y Adaptado) -->
+<div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.75rem; padding: 0.75rem 1rem; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center;">
+  <div>
+    <span style="font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.025em; display: block;">
+      Servicio seleccionado
+    </span>
+    <span id="nombre_servicio_preview" style="font-size: 0.95rem; font-weight: 600; color: #0f172a;">
+      Cargando servicio...
+    </span>
+  </div>
+  <div id="precio_servicio_preview" style="font-size: 0.95rem; font-weight: 700; color: #0f172a;">
+    --
+  </div>
+</div>
+
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 1.25rem;">
               <div>
                 <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #334155; margin-bottom: 0.5rem;">
@@ -147,26 +166,15 @@
               </div>
             </div>
 
-            <div style="margin-bottom: 1.25rem;">
-              <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #334155; margin-bottom: 0.5rem;">
-                Tipo de servicio <span style="color: #ef4444;">*</span>
-              </label>
-              <select id="tipo_servicio" class="form-input-field" required>
-                <option value="" disabled selected>Selecciona un servicio</option>
-                <option value="1">Masaje de relajación</option>
-                <option value="2">Cuidado facial estético</option>
-              </select>
-            </div>
-
             <div style="margin-bottom: 1.75rem;">
               <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #334155; margin-bottom: 0.5rem;">
-                Notas adicionales
+                Notas adicionales / Dirección
               </label>
-              <textarea id="notas_adicionales" rows="4" class="form-input-field" placeholder="Indica detalles del servicio, dirección, requerimientos especiales..." style="resize: vertical;"></textarea>
+              <textarea id="notas_adicionales" rows="4" class="form-input-field" placeholder="Indica detalles del servicio, dirección completa, requerimientos especiales..." style="resize: vertical;"></textarea>
             </div>
 
             <!-- Botón Enviar Solicitud -->
-            <button type="submit" style="width: 100%; background-color: #0b1120; color: #ffffff; font-weight: 700; padding: 1rem; border-radius: 0.85rem; border: none; font-size: 1rem; cursor: pointer; transition: background-color 0.2s ease;">
+            <button type="submit" id="btnEnviarSolicitud" style="width: 100%; background-color: #0b1120; color: #ffffff; font-weight: 700; padding: 1rem; border-radius: 0.85rem; border: none; font-size: 1rem; cursor: pointer; transition: background-color 0.2s ease;">
               Enviar solicitud
             </button>
 
@@ -265,16 +273,69 @@ document.addEventListener('DOMContentLoaded', function() {
   var form = document.getElementById('formSolicitarServicio');
   var inputFecha = document.getElementById('fecha_preferida');
   var errorFecha = document.getElementById('error_fecha');
-  var selectTipoServicio = document.getElementById('tipo_servicio');
+  var namePreview = document.getElementById('nombre_servicio_preview');
+  var pricePreview = document.getElementById('precio_servicio_preview');
 
-  // Seleccionar automáticamente el servicio según el ID que viene en la URL (/solicitar/1/)
+  var servicioActual = null;
+
+  // 1. Obtener ID del servicio directamente desde la URL (/solicitar/4/)
   var pathSegments = window.location.pathname.split('/').filter(Boolean);
   var servicioIdUrl = pathSegments[pathSegments.length - 1];
-  if (selectTipoServicio && !isNaN(servicioIdUrl)) {
-    selectTipoServicio.value = servicioIdUrl;
+
+  // Formatear precio
+  function formatearDinero(monto) {
+    if (window.BEC && window.BEC.dinero) {
+      return window.BEC.dinero(monto);
+    }
+    return '$' + Number(monto || 0).toLocaleString('es-CO');
   }
 
-  // Configurar la fecha mínima como HOY (YYYY-MM-DD)
+  // 2. Cargar la información del servicio directamente
+  function cargarDetalleServicio() {
+    if (!servicioIdUrl || isNaN(servicioIdUrl)) {
+      if (namePreview) namePreview.textContent = 'Servicio no especificado';
+      return;
+    }
+
+    var urlServicio = '/api/catalogo/servicios/' + servicioIdUrl + '/';
+    
+    fetch(urlServicio)
+      .then(function(res) { return res.ok ? res.json() : null; })
+      .then(function(s) {
+        if (s) {
+          servicioActual = s;
+          if (namePreview) namePreview.textContent = s.nombre || s.titulo || 'Servicio de Bienestar';
+          if (pricePreview) pricePreview.textContent = formatearDinero(s.precio);
+        } else {
+          // Si la ruta directa no funciona, buscar en el catálogo general
+          cargarDesdeCatalogoGeneral();
+        }
+      })
+      .catch(function() {
+        cargarDesdeCatalogoGeneral();
+      });
+  }
+
+  function cargarDesdeCatalogoGeneral() {
+    var urlServicios = (window.BEC && window.BEC.cfg && window.BEC.cfg.api && window.BEC.cfg.api.servicios) ? window.BEC.cfg.api.servicios : '/api/catalogo/servicios/';
+    fetch(urlServicios)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var lista = window.BEC && window.BEC.lista ? window.BEC.lista(data) : (Array.isArray(data) ? data : (data.results || []));
+        var encontrado = lista.find(item => String(item.id) === String(servicioIdUrl));
+        if (encontrado) {
+          servicioActual = encontrado;
+          if (namePreview) namePreview.textContent = encontrado.nombre || 'Servicio de Bienestar';
+          if (pricePreview) pricePreview.textContent = formatearDinero(encontrado.precio);
+        } else {
+          if (namePreview) namePreview.textContent = 'Servicio #' + servicioIdUrl;
+        }
+      });
+  }
+
+  cargarDetalleServicio();
+
+  // Configurar fecha mínima como HOY
   if (inputFecha) {
     var hoy = new Date();
     var yyyy = hoy.getFullYear();
@@ -282,16 +343,16 @@ document.addEventListener('DOMContentLoaded', function() {
     var dd = String(hoy.getDate()).padStart(2, '0');
     inputFecha.min = yyyy + '-' + mm + '-' + dd;
 
-    // Validación interactiva: Solo de Lunes a Viernes
+    // Validación interactiva: Solo Lunes a Viernes
     inputFecha.addEventListener('change', function() {
       if (!inputFecha.value) return;
 
       var fechaSeleccionada = new Date(inputFecha.value + 'T00:00:00');
-      var diaSemana = fechaSeleccionada.getDay(); // 0 = Domingo, 6 = Sábado
+      var diaSemana = fechaSeleccionada.getDay();
 
       if (diaSemana === 0 || diaSemana === 6) {
         if (errorFecha) {
-          errorFecha.textContent = 'El servicio solo atiende de Lunes a Viernes. Por favor selecciona un día hábil.';
+          errorFecha.textContent = 'Atención únicamente de Lunes a Viernes.';
           errorFecha.style.display = 'block';
         }
         inputFecha.value = '';
@@ -311,19 +372,20 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Precargar datos del usuario
-  if (window.BEC && window.BEC.cargarPerfil) {
-    window.BEC.cargarPerfil().then(function(perfil) {
-      if (perfil) {
+  // Precargar datos del perfil
+  if (window.BEC && window.BEC.api) {
+    window.BEC.api('/api/usuarios/perfil/').then(function(res) {
+      if (res && res.ok && res.data) {
+        var perfil = res.data.usuario || res.data;
         var inputNombre = document.getElementById('nombre_cliente');
         var inputEmail = document.getElementById('email_cliente');
         var inputTelefono = document.getElementById('telefono_cliente');
 
-        if (inputNombre && perfil.nombres) {
-          inputNombre.value = perfil.nombres + (perfil.apellidos ? ' ' + perfil.apellidos : '');
+        if (inputNombre && (perfil.nombres || perfil.first_name)) {
+          inputNombre.value = (perfil.nombres || perfil.first_name) + ' ' + (perfil.apellidos || perfil.last_name || '');
         }
-        if (inputEmail && perfil.email) {
-          inputEmail.value = perfil.email;
+        if (inputEmail && (perfil.email || perfil.correo)) {
+          inputEmail.value = perfil.email || perfil.correo;
         }
         if (inputTelefono && perfil.telefono) {
           inputTelefono.value = perfil.telefono;
@@ -337,40 +399,36 @@ document.addEventListener('DOMContentLoaded', function() {
     form.addEventListener('submit', function(e) {
       e.preventDefault();
 
-      // Validar Lunes a Viernes
-      if (inputFecha.value) {
-        var fechaSeleccionada = new Date(inputFecha.value + 'T00:00:00');
-        var diaSemana = fechaSeleccionada.getDay();
-        if (diaSemana === 0 || diaSemana === 6) {
-          if (errorFecha) {
-            errorFecha.textContent = 'Atención únicamente de Lunes a Viernes.';
-            errorFecha.style.display = 'block';
-          }
-          return;
+      if (!inputFecha.value) {
+        if (errorFecha) {
+          errorFecha.textContent = 'Selecciona una fecha válida.';
+          errorFecha.style.display = 'block';
         }
+        return;
       }
-
-      if (window.BEC && window.BEC.ocupado) window.BEC.ocupado(form, true);
 
       var csrfToken = '';
       var csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
-      if (csrfInput) {
-        csrfToken = csrfInput.value;
-      }
+      if (csrfInput) csrfToken = csrfInput.value;
 
-      var selectedServicioVal = selectTipoServicio ? selectTipoServicio.value : null;
-      var servicioId = (!isNaN(servicioIdUrl) && servicioIdUrl) ? servicioIdUrl : selectedServicioVal;
       var notasTexto = document.getElementById('notas_adicionales').value.trim();
+      var proveedorId = servicioActual ? (servicioActual.proveedor_id || (servicioActual.proveedor ? (servicioActual.proveedor.id || servicioActual.proveedor) : 1)) : 1;
 
       var payload = {
-        servicio: parseInt(servicioId) || 1,                            
-        proveedor: parseInt(servicioId) || 1,                           
-        fecha_solicitada: inputFecha.value,                             
-        hora_solicitada: document.getElementById('horario_disponible').value, 
-        direccion_atencion: notasTexto || "Dirección del perfil",       
-        barrio_sector: "Principal",                                     
+        servicio: parseInt(servicioIdUrl),
+        proveedor: parseInt(proveedorId),
+        fecha_solicitada: inputFecha.value,
+        hora_solicitada: document.getElementById('horario_disponible').value,
+        direccion_atencion: notasTexto || "Dirección del perfil",
+        barrio_sector: "Principal",
         notas_adicionales: notasTexto
       };
+
+      var btnSubmit = document.getElementById('btnEnviarSolicitud');
+      if (btnSubmit) {
+        btnSubmit.disabled = true;
+        btnSubmit.textContent = 'Enviando...';
+      }
 
       fetch('/api/solicitudes/', {
         method: 'POST',
@@ -382,14 +440,16 @@ document.addEventListener('DOMContentLoaded', function() {
         body: JSON.stringify(payload)
       })
       .then(function(response) {
-        if (window.BEC && window.BEC.ocupado) window.BEC.ocupado(form, false);
+        if (btnSubmit) {
+          btnSubmit.disabled = false;
+          btnSubmit.textContent = 'Enviar solicitud';
+        }
 
         if (response.status === 201 || response.ok) {
-          // Mostrar banner interactivo de éxito
           var msgs = document.getElementById('mensajes');
           if (msgs) {
             msgs.innerHTML = `
-              <div style="background-color:#F0FDF4; color:#166534; padding:1.25rem; border-radius:12px; font-weight:500; margin-bottom:1.5rem; border:1px solid #BBF7D0; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+              <div style="background-color:#F0FDF4; color:#166534; padding:1.25rem; border-radius:12px; font-weight:500; margin-bottom:1.5rem; border:1px solid #BBF7D0;">
                 <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
                   <span style="font-size:1.25rem;">✅</span>
                   <strong style="font-size:1.05rem;">¡Solicitud creada con éxito!</strong>
@@ -401,16 +461,11 @@ document.addEventListener('DOMContentLoaded', function() {
                   <a href="{% url 'pagina-mis-solicitudes' %}" style="background-color:#166534; color:#ffffff; padding:0.5rem 1rem; border-radius:8px; text-decoration:none; font-size:0.875rem; font-weight:600; display:inline-block;">
                     Ver Mis Solicitudes
                   </a>
-                  <button type="button" onclick="document.getElementById('mensajes').innerHTML='';" style="background-color:transparent; color:#166534; border:1px solid #166534; padding:0.5rem 1rem; border-radius:8px; font-size:0.875rem; font-weight:600; cursor:pointer;">
-                    Crear otra solicitud
-                  </button>
                 </div>
               </div>
             `;
-            // Desplazar suavemente hasta el mensaje
             msgs.scrollIntoView({ behavior: 'smooth', block: 'center' });
           }
-          // Limpiar formulario para permitir un nuevo registro si lo desea
           form.reset();
         } else {
           return response.json().then(function(data) {
@@ -428,7 +483,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       })
       .catch(function(err) {
-        if (window.BEC && window.BEC.ocupado) window.BEC.ocupado(form, false);
+        if (btnSubmit) {
+          btnSubmit.disabled = false;
+          btnSubmit.textContent = 'Enviar solicitud';
+        }
         console.error("Error al enviar solicitud:", err);
       });
     });

@@ -9,30 +9,33 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from django.conf import settings
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from .models import Direccion, PerfilProveedor, PerfilUsuario, ZonaAtencion, SesionActiva
-
+from .authentication import CookieJWTAuthentication  # <--- HABILITA LECTURA DE COOKIE JWT
 
 from catalogo.models import Servicio
 from django.db.models import Prefetch
 from django.http import Http404
 from django.shortcuts import render
-from .serializers import ProveedorPublicoSerializer, ZonaAtencionSerializer, PerfilProveedorSerializer, ActualizarPerfilSerializer, DireccionSerializer, InicioSesionSerializer, PerfilSerializer, RegistroSerializer
-
-from catalogo.models import Servicio
+from .serializers import (
+    ProveedorPublicoSerializer, ZonaAtencionSerializer, PerfilProveedorSerializer,
+    ActualizarPerfilSerializer, DireccionSerializer, InicioSesionSerializer,
+    PerfilSerializer, RegistroSerializer
+)
 from catalogo.serializers import ServicioSerializer
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
-class RegistroView(generics.CreateAPIView): #para crear el usuario despues de registrarse
+class RegistroView(generics.CreateAPIView):
     permission_classes = (permissions.AllowAny,)
     authentication_classes = ()
-    serializer_class = RegistroSerializer #llama al serializer para que haga la validacion de los datos y cree el usuario y el perfil
+    serializer_class = RegistroSerializer
 
-    def create(self, request, *args, **kwargs): #lo crea
+    def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)#el serializer ya verifico
+        serializer.is_valid(raise_exception=True)
         perfil = serializer.save() 
         return Response(PerfilSerializer(perfil).data, status=status.HTTP_201_CREATED)
 
 
-def poner_cookies(response): #saca los tokens del body y los manda como cookies httponly, asi el JS nunca los ve
+def poner_cookies(response):
     for nombre, vida in (('access', jwt_settings.ACCESS_TOKEN_LIFETIME), ('refresh', jwt_settings.REFRESH_TOKEN_LIFETIME)):
         if nombre in response.data:
             response.set_cookie(nombre, response.data.pop(nombre), max_age=int(vida.total_seconds()),
@@ -42,20 +45,19 @@ def poner_cookies(response): #saca los tokens del body y los manda como cookies 
 
 class InicioSesionView(TokenObtainPairView):
     permission_classes = (permissions.AllowAny,)
-    authentication_classes = () #una cookie vieja o de otra sesion no debe impedir volver a entrar
+    authentication_classes = ()
     serializer_class = InicioSesionSerializer
-     #inicia la seccion y el serializer
 
     def post(self, request, *args, **kwargs):
+        # 1. Obtener los tokens de SimpleJWT
         response = super().post(request, *args, **kwargs)
         refresh = RefreshToken(response.data['refresh'])
         usuario_id = refresh[jwt_settings.USER_ID_CLAIM]
 
-        # invalida cualquier refresh token anterior de este usuario
+        # 2. Invalida tokens anteriores y registra sesión activa
         for t in OutstandingToken.objects.filter(user_id=usuario_id).exclude(jti=refresh['jti']):
             BlacklistedToken.objects.get_or_create(token=t)
 
-        # registra esta como la sesion vigente
         SesionActiva.objects.update_or_create(
             usuario_id=usuario_id,
             defaults={
@@ -65,12 +67,23 @@ class InicioSesionView(TokenObtainPairView):
                 'ip': request.META.get('REMOTE_ADDR'),
             }
         )
-        return poner_cookies(response)
+
+        # 3. PRIMERO PONER COOKIES (Estarán disponibles en las cabeceras HTTP Set-Cookie)
+        response = poner_cookies(response)
+
+        # 4. LUEGO Adjuntar el perfil/rol al JSON de respuesta
+        try:
+            perfil_obj = PerfilUsuario.objects.get(usuario_id=usuario_id)
+            response.data = PerfilSerializer(perfil_obj).data
+        except PerfilUsuario.DoesNotExist:
+            pass
+
+        return response
 
 
 class RenovarTokenView(TokenRefreshView):
     authentication_classes = ()
-    def get_serializer(self, *args, **kwargs): #el refresh sale de la cookie, no del body
+    def get_serializer(self, *args, **kwargs):
         kwargs['data'] = {'refresh': self.request.COOKIES.get('refresh', '')}
         return super().get_serializer(*args, **kwargs)
 
@@ -79,19 +92,18 @@ class RenovarTokenView(TokenRefreshView):
 
 
 class CerrarSesionView(APIView):
-    permission_classes = (permissions.AllowAny,) #aunque el access ya haya vencido se deben poder borrar las cookies
-    authentication_classes = () #la sesion se saca del refresh, asi una sesion reemplazada tambien puede borrar sus cookies
+    permission_classes = (permissions.AllowAny,)
+    authentication_classes = ()
 
     def post(self, request):
         refresh = request.COOKIES.get('refresh')
         if refresh:
             try:
                 token = RefreshToken(refresh)
-                #solo borra la sesion si es la vigente, no la de otro dispositivo
                 SesionActiva.objects.filter(usuario_id=token[jwt_settings.USER_ID_CLAIM], session_id=token.get('sid')).delete()
-                token.blacklist() #lista negra pa que nadie lo use mas
+                token.blacklist()
             except TokenError:
-                pass #ya vencido o invalido, igual se borran las cookies
+                pass
         response = Response(status=status.HTTP_204_NO_CONTENT)
         response.delete_cookie('access', samesite='Lax')
         response.delete_cookie('refresh', samesite='Lax')
@@ -100,18 +112,23 @@ class CerrarSesionView(APIView):
 
 class MiPerfilView(generics.RetrieveUpdateAPIView):
     http_method_names = ['get', 'patch', 'head', 'options']
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_serializer_class(self):
-        if self.request.method == 'PATCH': #este es para modificar
+        if self.request.method == 'PATCH':
             return ActualizarPerfilSerializer
-
         return PerfilSerializer
 
     def get_object(self):
         return self.request.user.perfil
 
+
 class DireccionListCreateView(generics.ListCreateAPIView):
     serializer_class = DireccionSerializer
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         if self.request.user.perfil.rol != PerfilUsuario.Rol.CLIENTE:
@@ -125,7 +142,6 @@ class DireccionListCreateView(generics.ListCreateAPIView):
         if self.request.user.perfil.rol != PerfilUsuario.Rol.CLIENTE:
             raise PermissionDenied('Solo los clientes pueden registrar direcciones.')
 
-        # Si esta nueva dirección se marca como principal, desmarcar las anteriores del usuario
         es_principal = serializer.validated_data.get('es_principal', False)
         if es_principal:
             Direccion.objects.filter(
@@ -133,21 +149,22 @@ class DireccionListCreateView(generics.ListCreateAPIView):
                 es_principal=True,
             ).update(es_principal=False)
 
-        # Si el usuario no tiene direcciones previas, forzar que esta sea principal
         existe_direccion = Direccion.objects.filter(usuario=self.request.user).exists()
         if not existe_direccion:
             es_principal = True
 
-        # Pasa explícitamente el objeto de usuario actual
         serializer.save(
             usuario=self.request.user,
             es_principal=es_principal,
         )
 
+
 class DireccionDetalleView(generics.RetrieveUpdateAPIView):
     serializer_class = DireccionSerializer
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
 
-    def get_queryset(self): # antes de pedirla verifica que se el cliente
+    def get_queryset(self):
         if self.request.user.perfil.rol != PerfilUsuario.Rol.CLIENTE:
             raise PermissionDenied('Solo los clientes pueden consultar direcciones.')
 
@@ -157,7 +174,7 @@ class DireccionDetalleView(generics.RetrieveUpdateAPIView):
         direccion = self.get_object()
         es_principal = serializer.validated_data.get('es_principal')
 
-        if es_principal is True: #verifica si es principal y si ya hay otra principal, si es asi la cambia a false
+        if es_principal is True:
             Direccion.objects.filter(
                 usuario=self.request.user,
                 es_principal=True,
@@ -176,9 +193,15 @@ class DireccionDetalleView(generics.RetrieveUpdateAPIView):
 
         serializer.save()
 
+
 class MiPerfilProveedorView(APIView):
-    def verificar_proveedor(self, request):#comprueba si es proveedor, si no lo es lanza un error
-        if request.user.perfil.rol != PerfilUsuario.Rol.PROVEEDOR:
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def verificar_proveedor(self, request):
+        perfil = getattr(request.user, 'perfil', None)
+        rol = str(getattr(perfil, 'rol', '')).upper()
+        if rol not in ['PROVEEDOR', 'PRO'] and not request.user.is_staff:
             raise PermissionDenied(
                 'Solo los proveedores pueden gestionar su perfil profesional.'
             )
@@ -225,34 +248,67 @@ class MiPerfilProveedorView(APIView):
 
         return Response(serializer.data)
 
+
 class MisZonasAtencionView(generics.ListCreateAPIView):
+    """Gestión de zonas de atención para el proveedor logueado (Listar y Crear)."""
     serializer_class = ZonaAtencionSerializer
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
 
     def obtener_perfil_proveedor(self):
-        if self.request.user.perfil.rol != PerfilUsuario.Rol.PROVEEDOR:
-            raise PermissionDenied(
-                'Solo los proveedores pueden gestionar zonas de atención.'
-            )
+        perfil = getattr(self.request.user, 'perfil', None)
+        if not perfil:
+            raise PermissionDenied('No existe un perfil asociado a este usuario.')
+
+        rol = str(getattr(perfil, 'rol', '')).upper()
+        if rol not in ['PROVEEDOR', 'PRO'] and not self.request.user.is_staff:
+            raise PermissionDenied('Solo los proveedores pueden gestionar zonas de atención.')
 
         try:
-            return self.request.user.perfil.perfil_profesional
-        except PerfilProveedor.DoesNotExist:
-            raise NotFound(
-                'Primero debes crear tu perfil profesional.'
-            )
+            return perfil.perfil_profesional
+        except Exception:
+            perfil_prof, _ = PerfilProveedor.objects.get_or_create(perfil_usuario=perfil)
+            return perfil_prof
 
     def get_queryset(self):
         perfil_proveedor = self.obtener_perfil_proveedor()
         return ZonaAtencion.objects.filter(
             perfil_proveedor=perfil_proveedor
-        )
+        ) if hasattr(ZonaAtencion, 'perfil_proveedor') else ZonaAtencion.objects.filter(proveedor=perfil_proveedor)
 
     def perform_create(self, serializer):
         perfil_proveedor = self.obtener_perfil_proveedor()
-        serializer.save(perfil_proveedor=perfil_proveedor)
+        if hasattr(ZonaAtencion, 'perfil_proveedor'):
+            serializer.save(perfil_proveedor=perfil_proveedor)
+        else:
+            serializer.save(proveedor=perfil_proveedor)
 
 
-class ProveedorDetalleView(generics.RetrieveAPIView): #catalogo
+class ZonaAtencionDetalleView(generics.RetrieveDestroyAPIView):
+    """Gestión de zona individual (Eliminar / Consultar por ID)."""
+    serializer_class = ZonaAtencionSerializer
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        perfil = getattr(user, 'perfil', None)
+        perfil_proveedor = getattr(perfil, 'perfil_profesional', None)
+
+        if hasattr(ZonaAtencion, 'perfil_proveedor'):
+            return ZonaAtencion.objects.filter(perfil_proveedor=perfil_proveedor)
+        return ZonaAtencion.objects.filter(proveedor=perfil_proveedor)
+
+    def destroy(self, request, *args, **kwargs):
+        try:
+            instance = self.get_object()
+            self.perform_destroy(instance)
+            return Response({"mensaje": "Zona eliminada con éxito"}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"detail": f"Error al eliminar la zona: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ProveedorDetalleView(generics.RetrieveAPIView):
     """Perfil público del proveedor con su catálogo activo (HU-09, HU-10)."""
     serializer_class = ProveedorPublicoSerializer
     queryset = PerfilProveedor.objects.select_related('perfil_usuario__usuario').prefetch_related(

@@ -3,6 +3,20 @@
 
 {% block title %}Bienestar en Casa{% endblock %}
 
+{% block header_nav %}
+{% if request.user.is_authenticated %}
+    {% if request.user.perfil.rol == 'PROVEEDOR' %}
+        {% include 'nav_proveedor.html' %}
+    {% else %}
+        {% include 'nav_cliente.html' %}
+    {% endif %}
+{% else %}
+    <ul class="nav-list">
+        <li><button type="button" id="btn-abrir-login-modal" class="btn-nav-login">Iniciar sesión</button></li>
+    </ul>
+{% endif %}
+{% endblock %}
+
 {% block extra_head %}
 <style>
     /* Reset local para permitir secciones full-width */
@@ -296,7 +310,7 @@
 
                 <div class="why-card">
                     <div class="why-icon icon-green">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 00.293.707V19a2 2 0 01-2 2z" /></svg>
                     </div>
                     <h3>Catálogo transparente</h3>
                     <p>Consulta precio, duración, descripción, insumos y referencias de cada servicio.</p>
@@ -342,33 +356,37 @@
             <p class="section-subtitle">Conoce servicios de estética y bienestar disponibles para recibir en casa.</p>
 
             <div class="featured-grid">
-                <div class="featured-card">
-                    <img src="https://images.unsplash.com/photo-1519823551278-64ac92734fb1?auto=format&fit=crop&q=80&w=800" alt="Masaje de relajación">
-                    <div class="featured-content">
-                        <h3>Masaje de relajación</h3>
-                        <p>Disfruta un masaje no médico orientado al descanso y bienestar en la comodidad de tu hogar.</p>
-                        <a href="{% url 'pagina-login' %}" class="btn-ver-detalles">Ver detalles</a>
-                    </div>
-                </div>
+    <div class="featured-card">
+        <img src="https://images.unsplash.com/photo-1519823551278-64ac92734fb1?auto=format&fit=crop&q=80&w=800" alt="Masaje">
+        <div class="featured-content">
+            <h3>Masaje de relajación</h3>
+            <p>Disfruta un masaje no médico orientado al descanso y bienestar en la comodidad de tu hogar.</p>
+            <button type="button" class="btn-ver-detalles btn-nav-login">Ver detalles</button>
+        </div>
+    </div>
 
-                <div class="featured-card">
-                    <img src="https://images.unsplash.com/photo-1604654894610-df63bc536371?auto=format&fit=crop&q=80&w=800" alt="Manicure y Pedicure">
-                    <div class="featured-content">
-                        <h3>Manicure y Pedicure</h3>
-                        <p>Servicio de cuidado estético de uñas realizado por profesionales en la dirección que indiques.</p>
-                        <a href="{% url 'pagina-login' %}" class="btn-ver-detalles">Ver detalles</a>
-                    </div>
-                </div>
-            </div>
+    <div class="featured-card">
+        <img src="https://images.unsplash.com/photo-1604654894610-df63bc536371?auto=format&fit=crop&q=80&w=800" alt="Manicure">
+        <div class="featured-content">
+            <h3>Manicure y Pedicure</h3>
+            <p>Servicio de cuidado estético de uñas realizado por profesionales en la dirección que indiques.</p>
+            <button type="button" class="btn-ver-detalles btn-nav-login">Ver detalles</button>
+        </div>
+    </div>
+</div>
         </section>
     </div>
 
     <!-- 4. CTA Banner Azul Full Width -->
     <section class="cta-banner-full">
-        <h2>¿Listo para consentirte sin salir de casa?</h2>
-        <p>Explora servicios de estética y bienestar a domicilio ofrecidos por profesionales cerca de ti.</p>
-        <a href="{% url 'pagina-login' %}" class="btn-cta-white">Explora servicios</a>
-    </section>
+    <h2>¿Listo para consentirte sin salir de casa?</h2>
+    <p>Explora servicios de estética y bienestar a domicilio ofrecidos por profesionales cerca de ti.</p>
+    <button type="button" 
+            onclick="document.getElementById('modalLogin').classList.add('activo'); document.getElementById('modalLogin').setAttribute('aria-hidden', 'false');" 
+            style="background-color: #ffffff; color: #1A68FF; font-weight: 800; font-size: 0.95rem; padding: 0.85rem 1.75rem; border-radius: 0.75rem; border: none; outline: none; cursor: pointer; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1); display: inline-block; -webkit-appearance: none; appearance: none;">
+        Explora servicios
+    </button>
+</section>
 
     <!-- 5. Footer Figma Full Width -->
     <footer class="figma-footer-full">
@@ -382,10 +400,8 @@
                     <h4>Enlaces Rápidos</h4>
                     <ul>
                         <li><a href="{% url 'pagina-inicio' %}">Inicio</a></li>
-                        <li><a href="{% url 'pagina-login' %}">Explorar servicios</a></li>
+                        <li><a href="{% url 'pagina-catalogo' %}">Explorar servicios</a></li>
                         <li><a href="#">¿Cómo funciona?</a></li>
-                        <li><a href="{% url 'pagina-login' %}">Iniciar sesión</a></li>
-                        <li><a href="{% url 'pagina-registro' %}">Registrarse</a></li>
                     </ul>
                 </div>
                 <div class="footer-col">
@@ -409,7 +425,7 @@
                 </div>
             </div>
             <div class="footer-bottom">
-                &copy; 2026 Bienestar En Casa. All rights reserved.
+                &copy; 2026 Bienestar EnCasa. All rights reserved.
             </div>
         </div>
     </footer>
