@@ -149,7 +149,7 @@
         <div class="register-card-box">
             <div id="mensajes"></div>
 
-            <form id="registerForm">
+            <form id="registerForm" method="post" action="/api/auth/registro/">
                 {% csrf_token %}
                 <div class="form-grid-2">
                     <div class="form-group-field">
@@ -202,9 +202,33 @@ document.addEventListener('DOMContentLoaded', function() {
     var form = document.getElementById('registerForm');
     if (!form) return;
 
+    var mensajes = document.getElementById('mensajes');
+    var boton = form.querySelector('button[type="submit"]');
+
+    function mostrarMensaje(texto, error) {
+        if (!mensajes) return;
+        mensajes.textContent = texto;
+        mensajes.style.color = error ? '#b91c1c' : '#15803d';
+    }
+
+    function obtenerError(res) {
+        var data = res && res.data ? res.data : {};
+        var detalle = data.detail || data.error || data.non_field_errors;
+        if (Array.isArray(detalle)) detalle = detalle[0];
+        if (typeof detalle === 'string') return detalle;
+
+        var campos = ['email', 'password', 'password_confirmacion', 'nombres', 'apellidos', 'rol'];
+        for (var i = 0; i < campos.length; i++) {
+            var valor = data[campos[i]];
+            if (Array.isArray(valor) && valor.length) return String(valor[0]);
+            if (typeof valor === 'string') return valor;
+        }
+        return 'No se pudo crear la cuenta. Revisa los datos e inténtalo de nuevo.';
+    }
+
     form.addEventListener('submit', function(e) {
         e.preventDefault();
-        
+
         var datos = {
             nombres: form.nombres.value.trim(),
             apellidos: form.apellidos.value.trim(),
@@ -215,35 +239,46 @@ document.addEventListener('DOMContentLoaded', function() {
         };
 
         if (datos.password !== datos.password_confirmacion) {
-            if (window.BEC && window.BEC.mensaje) {
-                window.BEC.mensaje('Las contraseñas no coinciden.', 'error');
-            } else {
-                alert('Las contraseñas no coinciden.');
-            }
+            mostrarMensaje('Las contraseñas no coinciden.', true);
             return;
         }
 
-        if (window.BEC && window.BEC.ocupado) window.BEC.ocupado(form, true);
-
-        if (window.BEC && window.BEC.api) {
-            window.BEC.api(window.BEC.cfg.api.registro, { method: 'POST', body: datos }).then(function(res) {
-                if (window.BEC && window.BEC.ocupado) window.BEC.ocupado(form, false);
-                if (res && res.ok) {
-                    if (res.data) {
-                        try { localStorage.setItem('bec_perfil', JSON.stringify(res.data)); } catch (e) {}
-                    }
-                    var destino = (res.data && res.data.rol) ? window.BEC.inicioPorRol(res.data.rol) : (window.BEC.cfg.pages.perfil || '/mi-perfil/');
-                    window.location.href = destino;
-                } else {
-                    if (window.BEC && window.BEC.mensajeError) window.BEC.mensajeError(res);
-                }
-            }).catch(function() {
-                if (window.BEC && window.BEC.ocupado) window.BEC.ocupado(form, false);
-            });
+        if (!window.BEC || !window.BEC.api || !window.BEC.cfg.api.registro) {
+            mostrarMensaje('La ruta de registro no está disponible.', true);
+            return;
         }
+
+        mostrarMensaje('', false);
+        if (boton) {
+            boton.disabled = true;
+            boton.textContent = 'Creando cuenta...';
+        }
+
+        window.BEC.api(window.BEC.cfg.api.registro, { method: 'POST', body: datos }).then(function(res) {
+            if (boton) {
+                boton.disabled = false;
+                boton.textContent = 'Crear Cuenta';
+            }
+
+            if (!res || !res.ok) {
+                mostrarMensaje(obtenerError(res), true);
+                return;
+            }
+
+            form.reset();
+            mostrarMensaje('Tu cuenta se creó correctamente. Ahora puedes iniciar sesión.', false);
+            window.setTimeout(function() {
+                window.location.href = "{% url 'pagina-login' %}?registro=ok";
+            }, 900);
+        }).catch(function() {
+            if (boton) {
+                boton.disabled = false;
+                boton.textContent = 'Crear Cuenta';
+            }
+            mostrarMensaje('No se pudo conectar con el servidor. Inténtalo de nuevo.', true);
+        });
     });
-});
-</script>
+});</script>
 {% endblock %}
 
 {% block footer %}{% endblock %}

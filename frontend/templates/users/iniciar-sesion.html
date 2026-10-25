@@ -170,6 +170,12 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    var mensajes = document.getElementById('mensajes');
+    if (mensajes && new URLSearchParams(window.location.search).get('registro') === 'ok') {
+        mensajes.textContent = 'Tu cuenta se creó correctamente. Inicia sesión para continuar.';
+        mensajes.style.color = '#15803d';
+    }
+
     var btnVolver = document.getElementById('btn-volver-inicio');
     
     // 1. Funcionalidad del botón 'Volver al inicio'

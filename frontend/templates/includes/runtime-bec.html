@@ -7,6 +7,8 @@
     window.BEC.cfg = {
         api: {
             login: '/api/auth/iniciar-sesion/',
+            iniciarSesion: '/api/auth/iniciar-sesion/',
+            registro: '/api/auth/registro/',
             servicios: '/api/catalogo/servicios/',
             solicitudes: '/api/solicitudes/',
             direcciones: '/api/usuarios/direcciones/',
@@ -174,6 +176,99 @@
                     btnSubmit.disabled = false;
                     btnSubmit.textContent = 'Iniciar sesión';
                     if (msgBox) msgBox.innerHTML = '<div style="color: #ef4444; font-weight: 700; font-size: 0.85rem; margin-bottom: 0.5rem;">Error al conectar con el servidor.</div>';
+                });
+            });
+        }
+
+
+        var formRegistro = document.getElementById('registroFormModal');
+        if (formRegistro) {
+            formRegistro.addEventListener('submit', function(e) {
+                e.preventDefault();
+
+                var botonRegistro = formRegistro.querySelector('button[type="submit"]');
+                var mensajesRegistro = document.getElementById('mensajesRegistroModal');
+                var datos = {
+                    nombres: document.getElementById('regNombres').value.trim(),
+                    apellidos: document.getElementById('regApellidos').value.trim(),
+                    email: document.getElementById('regEmail').value.trim(),
+                    rol: document.getElementById('regRol').value,
+                    password: document.getElementById('regPassword').value,
+                    password_confirmacion: document.getElementById('regPasswordConfirm').value
+                };
+
+                function mostrarMensaje(texto, error) {
+                    if (!mensajesRegistro) return;
+                    mensajesRegistro.textContent = texto;
+                    mensajesRegistro.style.color = error ? '#dc2626' : '#15803d';
+                }
+
+                function obtenerError(res) {
+                    var data = res && res.data ? res.data : {};
+                    var detalle = data.detail || data.error || data.non_field_errors;
+                    if (Array.isArray(detalle)) detalle = detalle[0];
+                    if (typeof detalle === 'string') return detalle;
+
+                    var campos = ['email', 'password', 'password_confirmacion', 'nombres', 'apellidos', 'rol'];
+                    for (var i = 0; i < campos.length; i++) {
+                        var valor = data[campos[i]];
+                        if (Array.isArray(valor) && valor.length) return String(valor[0]);
+                        if (typeof valor === 'string') return valor;
+                    }
+                    return 'No se pudo crear la cuenta. Revisa los datos e inténtalo de nuevo.';
+                }
+
+                if (datos.password !== datos.password_confirmacion) {
+                    mostrarMensaje('Las contraseñas no coinciden.', true);
+                    return;
+                }
+
+                if (!window.BEC.cfg.api.registro) {
+                    mostrarMensaje('La ruta de registro no está configurada.', true);
+                    return;
+                }
+
+                mostrarMensaje('', false);
+                if (botonRegistro) {
+                    botonRegistro.disabled = true;
+                    botonRegistro.textContent = 'Creando cuenta...';
+                }
+
+                window.BEC.api(window.BEC.cfg.api.registro, {
+                    method: 'POST',
+                    body: datos
+                }).then(function(res) {
+                    if (botonRegistro) {
+                        botonRegistro.disabled = false;
+                        botonRegistro.textContent = 'Crear Cuenta';
+                    }
+
+                    if (!res || !res.ok) {
+                        mostrarMensaje(obtenerError(res), true);
+                        return;
+                    }
+
+                    formRegistro.reset();
+                    var vistaRegistro = document.getElementById('vistaRegistroModal');
+                    var vistaLogin = document.getElementById('vistaLoginModal');
+                    var emailLogin = document.getElementById('emailModal');
+                    var passwordLogin = document.getElementById('passwordModal');
+                    var mensajesLogin = document.getElementById('mensajesModal');
+
+                    if (emailLogin) emailLogin.value = datos.email;
+                    if (passwordLogin) passwordLogin.value = '';
+                    if (vistaRegistro) vistaRegistro.style.display = 'none';
+                    if (vistaLogin) vistaLogin.style.display = 'block';
+                    if (mensajesLogin) {
+                        mensajesLogin.textContent = 'Cuenta creada. Inicia sesión con tu correo y contraseña.';
+                        mensajesLogin.style.color = '#15803d';
+                    }
+                }).catch(function() {
+                    if (botonRegistro) {
+                        botonRegistro.disabled = false;
+                        botonRegistro.textContent = 'Crear Cuenta';
+                    }
+                    mostrarMensaje('No se pudo conectar con el servidor. Inténtalo de nuevo.', true);
                 });
             });
         }

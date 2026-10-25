@@ -113,7 +113,7 @@
                 <div class="login-card-box">
                     <div id="mensajesRegistroModal" aria-live="polite"></div>
 
-                    <form id="registroFormModal">
+                    <form id="registroFormModal" method="post" action="/api/auth/registro/">
                         {% csrf_token %}
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                             <div class="form-group-field">
