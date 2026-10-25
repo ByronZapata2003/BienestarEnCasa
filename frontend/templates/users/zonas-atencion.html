@@ -33,13 +33,38 @@
         <form id="formZona">
           {% csrf_token %}
           <div style="margin-bottom: 1rem;">
-            <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #334155; margin-bottom: 0.4rem;">Ciudad / Municipio *</label>
-            <input type="text" id="inputCiudadZona" placeholder="Ej: Cali" required style="width: 100%; box-sizing: border-box; padding: 0.75rem 0.9rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; background-color: #f8fafc; font-size: 0.9rem; outline: none;">
+              <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #334155; margin-bottom: 0.4rem;">Ciudad / Municipio *</label>
+              <input type="text" id="inputCiudadZona" value="Cali" placeholder="Ej: Cali" required style="width: 100%; box-sizing: border-box; padding: 0.75rem 0.9rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; background-color: #f8fafc; font-size: 0.9rem; outline: none;">
           </div>
 
           <div style="margin-bottom: 1.25rem;">
             <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #334155; margin-bottom: 0.4rem;">Sectores o Barrios cubiertos *</label>
-            <input type="text" id="inputSectoresZona" placeholder="Ej: San Fernando, Granada, Ciudad Jardín" required style="width: 100%; box-sizing: border-box; padding: 0.75rem 0.9rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; background-color: #f8fafc; font-size: 0.9rem; outline: none;">
+            <select id="inputSectoresZona" name="sectoresZona" required style="width: 100%; box-sizing: border-box; padding: 0.75rem 0.9rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; background-color: #f8fafc; font-size: 0.9rem; outline: none;">
+              <option value="">-- Selecciona un sector o barrio --</option>
+              <option value="san_fernando">San Fernando</option>
+              <option value="vipasa">Vipasa</option>
+              <option value="terron_colorado">Terron Colorado</option>
+              <option value="san_antonio">San Antonio</option>
+              <option value="manzanares">Manzanares</option>
+              <option value="rivera">Rivera</option>
+              <option value="los_guaduales">Los Guaduales</option>
+              <option value="alfonoso_lopez">Alfonso Lopez</option>
+              <option value="las_americas">Las Americas</option>
+              <option value="guayaquil">Guayaquil</option>
+              <option value="guabal">Guabal</option>
+              <option value="san_carlos">San Carlos</option>
+              <option value="nueva_floresta">Nueva Floresta</option>
+              <option value="lleras_restrepo">Lleras Restrepo</option>
+              <option value="alfonso_bonilla">Alfonso Bonilla</option>
+              <option value="el_vallado">El Vallado</option>
+              <option value="la_union">La Unidad</option>
+              <option value="el_limonar">El Limonar</option>
+              <option value="melendez">Meléndez</option>
+              <option value="el_cedro">El Cedro</option>
+              <option value="siloe">Siloe</option>
+              <option value="desepaz">Desepaz</option>
+              <option value="ciudad_jardin_pance">Ciudad Jardin y Pance</option>
+          </select>
           </div>
 
           <button type="submit" id="btnGuardarZona" style="width: 100%; background-color: #0d9488; color: #ffffff; font-weight: 700; padding: 0.8rem; border-radius: 0.75rem; border: none; font-size: 0.9rem; cursor: pointer; transition: background-color 0.2s ease;">
@@ -123,10 +148,16 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         contenedor.innerHTML = lista.map(z => {
-          const ciudad = z.ciudad || z.municipio || z.nombre || 'Cali';
-          const sectores = z.barrio_sector || z.sectores || z.barrio || z.cobertura || 'Cobertura general';
+          // 1. Obtenemos el texto original
+          let ciudadOriginal = z.ciudad || z.municipio || z.nombre || 'Cali';
+          let sectoresOriginal = z.barrio_sector || z.sectores || z.barrio || z.cobertura || 'Cobertura general';
           const zonaId = z.id;
 
+          // 2. Aplicamos el formato (reemplazar "_" por espacio y primera letra mayúscula)
+          const ciudad = ciudadOriginal.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+          const sectores = sectoresOriginal.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+
+          // 3. Retornamos el HTML ya con las variables formateadas
           return `
             <div style="background-color: #ffffff; border-radius: 1rem; border: 1px solid #e2e8f0; padding: 1.25rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
               <div>
