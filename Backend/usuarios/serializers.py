@@ -7,7 +7,14 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from catalogo.serializers import ServicioSerializer
-from .models import Direccion, PerfilProveedor, PerfilUsuario, ZonaAtencion
+from .models import (
+    DisponibilidadProveedor,
+    Direccion,
+    PeriodoNoDisponible,
+    PerfilProveedor,
+    PerfilUsuario,
+    ZonaAtencion,
+)
 
 Usuario = get_user_model()
 
@@ -170,6 +177,57 @@ class ZonaAtencionSerializer(serializers.ModelSerializer):
         model = ZonaAtencion
         fields = ('id', 'ciudad', 'barrio_sector')
         read_only_fields = ('id',)
+
+
+class DisponibilidadProveedorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DisponibilidadProveedor
+        fields = ('id', 'dia_semana', 'hora_inicio', 'hora_fin')
+        read_only_fields = ('id',)
+
+    def validate(self, attrs):
+        inicio = attrs.get('hora_inicio', getattr(self.instance, 'hora_inicio', None))
+        fin = attrs.get('hora_fin', getattr(self.instance, 'hora_fin', None))
+        dia = attrs.get('dia_semana', getattr(self.instance, 'dia_semana', None))
+        if inicio and fin and inicio >= fin:
+            raise serializers.ValidationError({
+                'hora_fin': 'La hora inicial debe ser anterior a la hora final.'
+            })
+        request = self.context.get('request')
+        perfil = getattr(getattr(request, 'user', None), 'perfil', None)
+        if perfil and dia is not None:
+            existentes = DisponibilidadProveedor.objects.filter(
+                proveedor__perfil_usuario=perfil,
+                dia_semana=dia,
+            )
+            if self.instance:
+                existentes = existentes.exclude(pk=self.instance.pk)
+            if existentes.exists():
+                raise serializers.ValidationError({
+                    'dia_semana': 'Ya existe un horario para este día; actualízalo desde su registro.'
+                })
+        return attrs
+
+
+class PeriodoNoDisponibleProveedorSerializer(serializers.ModelSerializer):
+    fecha_fin = serializers.DateField(required=False)
+
+    class Meta:
+        model = PeriodoNoDisponible
+        fields = ('id', 'fecha_inicio', 'fecha_fin', 'motivo')
+        read_only_fields = ('id',)
+        extra_kwargs = {'motivo': {'required': False, 'allow_blank': True}}
+
+    def validate(self, attrs):
+        inicio = attrs.get('fecha_inicio', getattr(self.instance, 'fecha_inicio', None))
+        fin = attrs.get('fecha_fin', getattr(self.instance, 'fecha_fin', None))
+        if inicio and fin and inicio > fin:
+            raise serializers.ValidationError({
+                'fecha_fin': 'La fecha de inicio no puede ser posterior a la fecha de fin.'
+            })
+        if inicio and not fin:
+            attrs['fecha_fin'] = inicio
+        return attrs
 
 
 class ProveedorPublicoSerializer(serializers.ModelSerializer):

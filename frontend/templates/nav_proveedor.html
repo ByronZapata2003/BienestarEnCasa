@@ -24,6 +24,14 @@
     </li>
 
     <li>
+        {% if request.resolver_match.url_name == 'pagina-disponibilidad' %}
+            <span class="nav-link active-link">Disponibilidad</span>
+        {% else %}
+            <a href="{% url 'pagina-disponibilidad' %}" class="nav-link">Disponibilidad</a>
+        {% endif %}
+    </li>
+
+    <li>
         {% if request.resolver_match.url_name == 'pagina-perfil' %}
             <span class="nav-link active-link">Mi Perfil</span>
         {% else %}

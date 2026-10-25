@@ -1,5 +1,7 @@
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import F, Q
 import uuid
 
 class PerfilUsuario(models.Model):
@@ -86,4 +88,73 @@ class SesionActiva(models.Model):
 
     def __str__(self):
         return f'Sesión de {self.usuario}'
-    
+
+
+class DisponibilidadProveedor(models.Model):
+    DIAS_SEMANA = (
+        (0, 'Lunes'),
+        (1, 'Martes'),
+        (2, 'Miércoles'),
+        (3, 'Jueves'),
+        (4, 'Viernes'),
+        (5, 'Sábado'),
+        (6, 'Domingo'),
+    )
+
+    proveedor = models.ForeignKey(
+        PerfilProveedor,
+        on_delete=models.CASCADE,
+        related_name='disponibilidades',
+    )
+    dia_semana = models.PositiveSmallIntegerField(choices=DIAS_SEMANA)
+    hora_inicio = models.TimeField()
+    hora_fin = models.TimeField()
+
+    class Meta:
+        ordering = ('dia_semana',)
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(hora_inicio__lt=F('hora_fin')),
+                name='disponibilidad_hora_inicio_anterior_fin',
+            ),
+            models.UniqueConstraint(
+                fields=('proveedor', 'dia_semana'),
+                name='disponibilidad_bloque_unico',
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.hora_inicio and self.hora_fin and self.hora_inicio >= self.hora_fin:
+            raise ValidationError({'hora_fin': 'La hora inicial debe ser anterior a la hora final.'})
+
+    def __str__(self):
+        return f'{self.proveedor} - {self.get_dia_semana_display()} ({self.hora_inicio:%H:%M}-{self.hora_fin:%H:%M})'
+
+
+class PeriodoNoDisponible(models.Model):
+    proveedor = models.ForeignKey(
+        PerfilProveedor,
+        on_delete=models.CASCADE,
+        related_name='periodos_no_disponibles',
+    )
+    fecha_inicio = models.DateField()
+    fecha_fin = models.DateField()
+    motivo = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ('fecha_inicio',)
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(fecha_inicio__lte=F('fecha_fin')),
+                name='periodo_fecha_inicio_no_posterior_fin',
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.fecha_inicio and self.fecha_fin and self.fecha_inicio > self.fecha_fin:
+            raise ValidationError({'fecha_fin': 'La fecha de inicio no puede ser posterior a la fecha de fin.'})
+
+    def __str__(self):
+        return f'{self.proveedor} - {self.fecha_inicio} a {self.fecha_fin}'

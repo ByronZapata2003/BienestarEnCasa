@@ -7,6 +7,7 @@ ninguna ruta de la API.
 """
 from django.urls import path
 from django.views.generic import TemplateView
+from usuarios.disponibilidad_views import GestionarDisponibilidadPageView
 
 
 def pagina(plantilla):
@@ -25,6 +26,7 @@ urlpatterns = [
 
     # Proveedor
     path('panel-proveedor/', pagina('users/plantilla-proveedor.html'), name='pagina-panel-proveedor'),
+    path('disponibilidad/', GestionarDisponibilidadPageView.as_view(), name='pagina-disponibilidad'),
     path('perfil-profesional/', pagina('users/perfil-proveedor.html'), name='pagina-perfil-proveedor'),
     path('zonas-atencion/', pagina('users/zonas-atencion.html'), name='pagina-zonas'),
     path('mis-servicios/', pagina('catalogo/mis-servicios.html'), name='pagina-mis-servicios'),
