@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+
+{% block title %}Disponibilidad - BienestarEnCasa{% endblock %}
+
+{% block header_nav %}
+    {% include 'nav_proveedor.html' %}
+{% endblock %}
+
+{% block extra_head %}
+<style>
+    .availability-page {
+        width: 100%;
+        background: #f8fafc;
+        padding: 2.5rem 1rem;
+        box-sizing: border-box;
+    }
+    .availability-content { max-width: 1100px; margin: 0 auto; }
+    .availability-heading { margin-bottom: 1.75rem; }
+    .availability-heading h1 { color: #0f172a; font-size: 2rem; margin: 0 0 .35rem; }
+    .availability-heading p { color: #64748b; margin: 0; }
+    .availability-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(280px, .7fr); gap: 1.25rem; align-items: start; }
+    .availability-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 1rem; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,.03); }
+    .availability-card h2 { color: #0f172a; font-size: 1.15rem; margin: 0 0 1rem; }
+    .availability-days { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+    .availability-day { border: 1px solid #e2e8f0; border-radius: .75rem; padding: .85rem; }
+    .availability-day-label { display: flex; gap: .5rem; align-items: center; margin-bottom: .65rem; color: #0f172a; font-weight: 700; }
+    .availability-times { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+    .availability-times label, .period-form label { display: block; color: #475569; font-size: .8rem; font-weight: 600; margin-bottom: .3rem; }
+    .availability-times input, .period-form input { width: 100%; padding: .6rem .65rem; border: 1px solid #cbd5e1; border-radius: .55rem; background: #f8fafc; box-sizing: border-box; }
+    .availability-errors { color: #b91c1c; font-size: .82rem; margin: .35rem 0 0; }
+    .availability-save, .period-form button, .period-delete button { background: #1a68ff; color: #fff; border: 0; border-radius: .65rem; padding: .7rem 1rem; font-weight: 700; cursor: pointer; }
+    .availability-save { margin-top: 1rem; width: 100%; }
+    .period-form > div { margin-bottom: .85rem; }
+    .period-form small { display: block; color: #64748b; margin-top: .25rem; }
+    .availability-message { border-radius: .65rem; padding: .8rem 1rem; margin: 0 0 1rem; }
+    .availability-message.success { color: #166534; background: #dcfce7; }
+    .availability-message.error { color: #991b1b; background: #fee2e2; }
+    .period-list { margin-top: 1.25rem; }
+    .period-item { border-top: 1px solid #e2e8f0; padding: .85rem 0; display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+    .period-item p { margin: .1rem 0; color: #0f172a; }
+    .period-item small { color: #64748b; }
+    .period-delete { flex: 0 0 auto; }
+    .period-delete button { background: #ef4444; padding: .55rem .7rem; }
+    .empty-periods { color: #64748b; font-size: .9rem; }
+    @media (max-width: 760px) {
+        .availability-grid { grid-template-columns: 1fr; }
+        .availability-days { grid-template-columns: 1fr; }
+        .availability-heading h1 { font-size: 1.65rem; }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<section class="availability-page">
+    <div class="availability-content">
+        <header class="availability-heading">
+            <h1>Disponibilidad del proveedor</h1>
+            <p>Configura tus días y horarios de atención y registra los periodos en los que no podrás prestar servicios.</p>
+        </header>
+
+        {% for message in messages %}
+            <div class="availability-message {{ message.tags|default:'success' }}" role="status">{{ message }}</div>
+        {% endfor %}
+
+        <div class="availability-grid">
+            <section class="availability-card" aria-labelledby="weekly-schedule-title">
+                <h2 id="weekly-schedule-title">Días y horarios de atención</h2>
+                <form method="post" action="{% url 'pagina-disponibilidad' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="accion" value="guardar_disponibilidad">
+                    {% if disponibilidad_form.dias.errors %}
+                        <div class="availability-errors">{{ disponibilidad_form.dias.errors }}</div>
+                    {% endif %}
+
+                    <div class="availability-days">
+                        {% for dia in dias %}
+                            <article class="availability-day">
+                                <label class="availability-day-label" for="dia-{{ dia.valor }}">
+                                    <input id="dia-{{ dia.valor }}" type="checkbox" name="dias" value="{{ dia.valor }}" {% if dia.activo %}checked{% endif %}>
+                                    {{ dia.etiqueta }}
+                                </label>
+                                <div class="availability-times">
+                                    <div>
+                                        <label for="{{ dia.hora_inicio.id_for_label }}">Desde</label>
+                                        {{ dia.hora_inicio }}
+                                        {% if dia.hora_inicio.errors %}<div class="availability-errors">{{ dia.hora_inicio.errors }}</div>{% endif %}
+                                    </div>
+                                    <div>
+                                        <label for="{{ dia.hora_fin.id_for_label }}">Hasta</label>
+                                        {{ dia.hora_fin }}
+                                        {% if dia.hora_fin.errors %}<div class="availability-errors">{{ dia.hora_fin.errors }}</div>{% endif %}
+                                    </div>
+                                </div>
+                            </article>
+                        {% endfor %}
+                    </div>
+                    <button type="submit" class="availability-save">Guardar disponibilidad</button>
+                </form>
+            </section>
+
+            <section class="availability-card" aria-labelledby="unavailable-periods-title">
+                <h2 id="unavailable-periods-title">{% if periodo_editando %}Actualizar periodo no disponible{% else %}Periodos no disponibles{% endif %}</h2>
+                <form method="post" action="{% url 'pagina-disponibilidad' %}" class="period-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="accion" value="{% if periodo_editando %}actualizar_periodo{% else %}crear_periodo{% endif %}">
+                    {% if periodo_editando %}<input type="hidden" name="periodo_id" value="{{ periodo_editando.id }}">{% endif %}
+                    <div>
+                        <label for="{{ periodo_form.fecha_inicio.id_for_label }}">{{ periodo_form.fecha_inicio.label }}</label>
+                        {{ periodo_form.fecha_inicio }}
+                        {% if periodo_form.fecha_inicio.errors %}<div class="availability-errors">{{ periodo_form.fecha_inicio.errors }}</div>{% endif %}
+                    </div>
+                    <div>
+                        <label for="{{ periodo_form.fecha_fin.id_for_label }}">{{ periodo_form.fecha_fin.label }}</label>
+                        {{ periodo_form.fecha_fin }}
+                        {% if periodo_form.fecha_fin.help_text %}<small>{{ periodo_form.fecha_fin.help_text }}</small>{% endif %}
+                        {% if periodo_form.fecha_fin.errors %}<div class="availability-errors">{{ periodo_form.fecha_fin.errors }}</div>{% endif %}
+                    </div>
+                    <div>
+                        <label for="{{ periodo_form.motivo.id_for_label }}">{{ periodo_form.motivo.label }}</label>
+                        {{ periodo_form.motivo }}
+                        {% if periodo_form.motivo.errors %}<div class="availability-errors">{{ periodo_form.motivo.errors }}</div>{% endif %}
+                    </div>
+                    <button type="submit">{% if periodo_editando %}Actualizar periodo{% else %}Registrar periodo{% endif %}</button>
+                    {% if periodo_editando %}<a href="{% url 'pagina-disponibilidad' %}" style="margin-left: .5rem; color: #475569;">Cancelar</a>{% endif %}
+                </form>
+
+                <div class="period-list" aria-live="polite">
+                    <h2>Periodos registrados</h2>
+                    {% for periodo in periodos %}
+                        <article class="period-item">
+                            <div>
+                                <p>{{ periodo.fecha_inicio|date:'d/m/Y' }}{% if periodo.fecha_fin != periodo.fecha_inicio %} – {{ periodo.fecha_fin|date:'d/m/Y' }}{% endif %}</p>
+                                {% if periodo.motivo %}<small>{{ periodo.motivo }}</small>{% endif %}
+                                <div><a href="{% url 'pagina-disponibilidad' %}?editar_periodo={{ periodo.id }}">Editar</a></div>
+                            </div>
+                            <form method="post" action="{% url 'pagina-disponibilidad' %}" class="period-delete">
+                                {% csrf_token %}
+                                <input type="hidden" name="accion" value="eliminar_periodo">
+                                <input type="hidden" name="periodo_id" value="{{ periodo.id }}">
+                                <button type="submit" aria-label="Eliminar periodo del {{ periodo.fecha_inicio|date:'d/m/Y' }}">Eliminar</button>
+                            </form>
+                        </article>
+                    {% empty %}
+                        <p class="empty-periods">Todavía no tienes periodos registrados.</p>
+                    {% endfor %}
+                </div>
+            </section>
+        </div>
+    </div>
+</section>
+{% endblock %}

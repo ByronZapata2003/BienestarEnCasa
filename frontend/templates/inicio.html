@@ -1,0 +1,436 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Bienestar en Casa{% endblock %}
+
+{% block header_nav %}
+{% if request.user.is_authenticated %}
+    {% if request.user.perfil.rol == 'PROVEEDOR' %}
+        {% include 'nav_proveedor.html' %}
+    {% else %}
+        {% include 'nav_cliente.html' %}
+    {% endif %}
+{% else %}
+    <ul class="nav-list">
+        <li><button type="button" id="btn-abrir-login-modal" class="btn-nav-login">Iniciar sesión</button></li>
+    </ul>
+{% endif %}
+{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Reset local para permitir secciones full-width */
+    .landing-page-container {
+        width: 100%;
+        overflow-x: hidden;
+    }
+
+    /* 1. Hero Section Full Width */
+    .hero-full-width {
+        background: linear-gradient(180deg, #F0F6FE 0%, #F8FAFC 100%);
+        width: 100%;
+        padding: 60px 0 80px 0;
+    }
+
+    .hero-inner {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 24px;
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 48px;
+        align-items: center;
+    }
+
+    .hero-title {
+        font-size: 3.4rem;
+        font-weight: 700;
+        line-height: 1.15;
+        color: #0F172A;
+        margin-bottom: 24px;
+        letter-spacing: -0.02em;
+    }
+
+    .hero-subtitle {
+        font-size: 1.15rem;
+        color: #64748B;
+        line-height: 1.6;
+        max-width: 480px;
+    }
+
+    .hero-img-box {
+        width: 100%;
+        border-radius: 28px;
+        overflow: hidden;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.08);
+    }
+
+    .hero-img-box img {
+        width: 100%;
+        height: 400px;
+        object-fit: cover;
+        display: block;
+    }
+
+    /* Contenedor central para las secciones internas */
+    .content-center {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 24px;
+    }
+
+    /* 2. Sección ¿Por qué elegirnos? */
+    .why-section {
+        padding: 80px 0 60px 0;
+        text-align: center;
+    }
+
+    .section-title {
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: #0F172A;
+        margin-bottom: 12px;
+    }
+
+    .section-subtitle {
+        font-size: 1.05rem;
+        color: #64748B;
+        max-width: 620px;
+        margin: 0 auto 52px auto;
+        line-height: 1.5;
+    }
+
+    .why-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 24px;
+    }
+
+    .why-card {
+        background: #ffffff;
+        border: 1px solid #E2E8F0;
+        border-radius: 20px;
+        padding: 32px 28px;
+        text-align: left;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+    }
+
+    .why-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 24px;
+    }
+
+    .why-icon svg { width: 24px; height: 24px; }
+
+    .icon-blue { background-color: #E0EFFF; color: #1A68FF; }
+    .icon-green { background-color: #E6F7F5; color: #00A88F; }
+    .icon-purple { background-color: #F3E8FF; color: #9333EA; }
+    .icon-red { background-color: #FEE2E2; color: #EF4444; }
+    .icon-orange { background-color: #FFEDD5; color: #EA580C; }
+    .icon-cyan { background-color: #CFFAFE; color: #0891B2; }
+
+    .why-card h3 { font-size: 1.2rem; font-weight: 700; color: #0F172A; margin-bottom: 12px; }
+    .why-card p { font-size: 0.95rem; color: #64748B; line-height: 1.5; margin: 0; }
+
+    /* 3. Servicios destacados */
+    .featured-section {
+        padding: 60px 0 80px 0;
+        text-align: center;
+    }
+
+    .featured-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 28px;
+        margin-top: 40px;
+        text-align: left;
+    }
+
+    .featured-card {
+        background: #ffffff;
+        border: 1px solid #E2E8F0;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+    }
+
+    .featured-card img {
+        width: 100%;
+        height: 260px;
+        object-fit: cover;
+    }
+
+    .featured-content { padding: 28px; }
+    .featured-card h3 { font-size: 1.4rem; font-weight: 700; color: #0F172A; margin-bottom: 10px; }
+    .featured-card p { font-size: 0.98rem; color: #64748B; margin-bottom: 24px; line-height: 1.5; }
+
+    .btn-ver-detalles {
+        background: #ffffff;
+        border: 1px solid #CBD5E1;
+        color: #0F172A;
+        padding: 10px 20px;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        text-decoration: none;
+        display: inline-block;
+        transition: all 0.2s;
+    }
+
+    .btn-ver-detalles:hover { background: #F8FAFC; border-color: #94A3B8; }
+
+    /* 4. CTA Banner Azul Full Width */
+    .cta-banner-full {
+        background-color: #1A68FF;
+        color: #ffffff;
+        width: 100%;
+        padding: 80px 24px;
+        text-align: center;
+    }
+
+    .cta-banner-full h2 {
+        color: #ffffff;
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 16px;
+    }
+
+    .cta-banner-full p {
+        color: #E0EFFF;
+        font-size: 1.15rem;
+        margin-bottom: 36px;
+    }
+
+    .btn-cta-white {
+        background: #ffffff;
+        color: #1A68FF;
+        font-weight: 700;
+        padding: 14px 36px;
+        border-radius: 12px;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 1rem;
+        transition: background-color 0.2s;
+    }
+
+    .btn-cta-white:hover { background-color: #F1F5F9; }
+
+    /* 5. Footer Figma Full Width */
+    .figma-footer-full {
+        background-color: #0F172A;
+        color: #94A3B8;
+        width: 100%;
+        padding: 64px 0 32px 0;
+    }
+
+    .footer-grid {
+        display: grid;
+        grid-template-columns: 1.5fr 1fr 1fr 1.2fr;
+        gap: 40px;
+        padding-bottom: 48px;
+        border-bottom: 1px solid #1E293B;
+    }
+
+    .footer-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #ffffff;
+        font-weight: 700;
+        font-size: 1.2rem;
+        margin-bottom: 16px;
+    }
+
+    .footer-brand span {
+        background: #1A68FF;
+        color: #ffffff;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 0.85rem;
+    }
+
+    .footer-col h4 { color: #ffffff; font-size: 1.05rem; font-weight: 600; margin-bottom: 20px; }
+    .footer-col ul { list-style: none; padding: 0; margin: 0; }
+    .footer-col ul li { margin-bottom: 12px; }
+    .footer-col ul li a { color: #94A3B8; text-decoration: none; font-size: 0.95rem; }
+    .footer-col ul li a:hover { color: #ffffff; }
+
+    .contact-item { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; font-size: 0.95rem; }
+    .social-icons { display: flex; gap: 16px; margin-top: 16px; }
+    .social-icons svg { width: 20px; height: 20px; fill: currentColor; color: #94A3B8; cursor: pointer; }
+    .social-icons svg:hover { color: #ffffff; }
+
+    .footer-bottom { text-align: center; padding-top: 32px; font-size: 0.9rem; color: #64748B; }
+
+    @media (max-width: 900px) {
+        .hero-inner { grid-template-columns: 1fr; }
+        .why-grid { grid-template-columns: 1fr; }
+        .featured-grid { grid-template-columns: 1fr; }
+        .footer-grid { grid-template-columns: 1fr 1fr; }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="landing-page-container">
+    
+    <!-- 1. Hero Section Full Width -->
+    <section class="hero-full-width">
+        <div class="hero-inner">
+            <div class="hero-text">
+                <h1 class="hero-title">Bienestar y estética en la comodidad de tu hogar</h1>
+                <p class="hero-subtitle">Encuentra proveedores, conoce sus servicios y solicita atención en la fecha que prefieras.</p>
+            </div>
+            <div class="hero-img-box">
+                <img src="https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&q=80&w=800" alt="Spa a domicilio">
+            </div>
+        </div>
+    </section>
+
+    <!-- Contenido centralizado -->
+    <div class="content-center">
+        <!-- 2. ¿Por qué elegir Bienestar En Casa? -->
+        <section class="why-section">
+            <h2 class="section-title">¿Por qué elegir Bienestar En Casa?</h2>
+            <p class="section-subtitle">Encuentra servicios de estética y bienestar a domicilio, consulta profesionales y gestiona tus solicitudes desde un solo lugar.</p>
+
+            <div class="why-grid">
+                <div class="why-card">
+                    <div class="why-icon icon-blue">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    </div>
+                    <h3>Solicita a domicilio</h3>
+                    <p>Elige el servicio, fecha, hora y dirección donde deseas recibir la atención.</p>
+                </div>
+
+                <div class="why-card">
+                    <div class="why-icon icon-green">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 00.293.707V19a2 2 0 01-2 2z" /></svg>
+                    </div>
+                    <h3>Catálogo transparente</h3>
+                    <p>Consulta precio, duración, descripción, insumos y referencias de cada servicio.</p>
+                </div>
+
+                <div class="why-card">
+                    <div class="why-icon icon-purple">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </div>
+                    <h3>Horarios flexibles</h3>
+                    <p>El proveedor puede aceptar la solicitud o proponer un horario diferente.</p>
+                </div>
+
+                <div class="why-card">
+                    <div class="why-icon icon-red">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                    </div>
+                    <h3>Agenda organizada</h3>
+                    <p>Organiza tus citas y gestiona el tiempo de tus servicios de manera eficiente.</p>
+                </div>
+
+                <div class="why-card">
+                    <div class="why-icon icon-orange">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                    </div>
+                    <h3>Profesionales verificados</h3>
+                    <p>Conoce la información profesional, zonas de atención y servicios de cada proveedor.</p>
+                </div>
+
+                <div class="why-card">
+                    <div class="why-icon icon-cyan">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" /></svg>
+                    </div>
+                    <h3>Cuenta segura</h3>
+                    <p>Protección de datos personales e información con altos estándares de seguridad.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. Servicios destacados -->
+        <section class="featured-section">
+            <h2 class="section-title">Servicios destacados</h2>
+            <p class="section-subtitle">Conoce servicios de estética y bienestar disponibles para recibir en casa.</p>
+
+            <div class="featured-grid">
+    <div class="featured-card">
+        <img src="https://images.unsplash.com/photo-1519823551278-64ac92734fb1?auto=format&fit=crop&q=80&w=800" alt="Masaje">
+        <div class="featured-content">
+            <h3>Masaje de relajación</h3>
+            <p>Disfruta un masaje no médico orientado al descanso y bienestar en la comodidad de tu hogar.</p>
+            <button type="button" class="btn-ver-detalles btn-nav-login">Ver detalles</button>
+        </div>
+    </div>
+
+    <div class="featured-card">
+        <img src="https://images.unsplash.com/photo-1604654894610-df63bc536371?auto=format&fit=crop&q=80&w=800" alt="Manicure">
+        <div class="featured-content">
+            <h3>Manicure y Pedicure</h3>
+            <p>Servicio de cuidado estético de uñas realizado por profesionales en la dirección que indiques.</p>
+            <button type="button" class="btn-ver-detalles btn-nav-login">Ver detalles</button>
+        </div>
+    </div>
+</div>
+        </section>
+    </div>
+
+    <!-- 4. CTA Banner Azul Full Width -->
+    <section class="cta-banner-full">
+    <h2>¿Listo para consentirte sin salir de casa?</h2>
+    <p>Explora servicios de estética y bienestar a domicilio ofrecidos por profesionales cerca de ti.</p>
+    <button type="button" 
+            onclick="document.getElementById('modalLogin').classList.add('activo'); document.getElementById('modalLogin').setAttribute('aria-hidden', 'false');" 
+            style="background-color: #ffffff; color: #1A68FF; font-weight: 800; font-size: 0.95rem; padding: 0.85rem 1.75rem; border-radius: 0.75rem; border: none; outline: none; cursor: pointer; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1); display: inline-block; -webkit-appearance: none; appearance: none;">
+        Explora servicios
+    </button>
+</section>
+
+    <!-- 5. Footer Figma Full Width -->
+    <footer class="figma-footer-full">
+        <div class="content-center">
+            <div class="footer-grid">
+                <div>
+                    <div class="footer-brand"><span>B+</span> Bienestar EnCasa</div>
+                    <p>Conectamos clientes con profesionales independientes de estética y bienestar a domicilio.</p>
+                </div>
+                <div class="footer-col">
+                    <h4>Enlaces Rápidos</h4>
+                    <ul>
+                        <li><a href="{% url 'pagina-inicio' %}">Inicio</a></li>
+                        <li><a href="{% url 'pagina-catalogo' %}">Explorar servicios</a></li>
+                        <li><a href="#">¿Cómo funciona?</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Servicios</h4>
+                    <ul>
+                        <li><a href="#">Masajes de relajación</a></li>
+                        <li><a href="#">Manicure y pedicure</a></li>
+                        <li><a href="#">Cuidado facial estético</a></li>
+                        <li><a href="#">Peinado y maquillaje</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Contactános</h4>
+                    <div class="contact-item">📍 Cali, Colombia</div>
+                    <div class="contact-item">📞 +1 234 56789</div>
+                    <div class="contact-item">✉️ BienestarEnCasa@gmail.com</div>
+                    <div class="social-icons">
+                        <svg viewBox="0 0 24 24"><path d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z"/></svg>
+                        <svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                &copy; 2026 Bienestar EnCasa. All rights reserved.
+            </div>
+        </div>
+    </footer>
+
+</div>
+{% endblock %}
+
+{% block footer %}{% endblock %}

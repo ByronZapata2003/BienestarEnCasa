@@ -1,0 +1,446 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Mi Perfil - Bienestar en Casa{% endblock %}
+
+{% block body %}
+<div style="background-color: #f8fafc; min-height: calc(100vh - 72px); padding: 2.5rem 1rem; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; box-sizing: border-box;">
+  <div style="max-width: 48rem; margin: 0 auto;">
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+      <div>
+        <h1 style="font-size: 2rem; font-weight: 700; color: #0f172a; margin: 0 0 0.25rem 0; letter-spacing: -0.02em;">
+          Mi Perfil
+        </h1>
+        <p style="color: #64748b; font-size: 0.95rem; margin: 0; font-weight: 400;">
+          Gestiona la información de tu cuenta y datos personales.
+        </p>
+      </div>
+
+      <!-- BOTÓN PARA HABILITAR MODO EDICIÓN -->
+      <button type="button" id="btnEditarPerfil" style="background-color: #ffffff; border: 1px solid #cbd5e1; color: #0f172a; font-weight: 600; padding: 0.6rem 1.2rem; border-radius: 0.65rem; font-size: 0.875rem; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s ease;">
+        ✏️ Editar Información
+      </button>
+    </div>
+
+    <div style="background-color: #ffffff; border-radius: 1.25rem; border: 1px solid #e2e8f0; padding: 2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+      
+      <div id="msjPerfil"></div>
+
+      <form id="formPerfil">
+        <!-- AVATAR Y DATOS DE CABECERA -->
+        <div style="display: flex; align-items: center; gap: 1.25rem; margin-bottom: 2rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 1.5rem; flex-wrap: wrap;">
+          
+          <div style="position: relative;">
+            <div id="avatarPerfil" style="width: 4.5rem; height: 4.5rem; background-color: #eff6ff; border-radius: 9999px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.5rem; color: #1a68ff; overflow: hidden; border: 2px solid #cbd5e1;">
+              <span id="txtAvatarIniciales">US</span>
+              <img id="imgAvatarFoto" src="" alt="Foto de perfil" style="display: none; width: 100%; height: 100%; object-fit: cover;">
+            </div>
+            
+            <!-- BOTÓN PARA CAMBIAR FOTO -->
+            <label id="btnCamaraFoto" for="inputFotoPerfil" style="position: absolute; bottom: 0; right: 0; background-color: #1a68ff; color: #ffffff; border-radius: 50%; width: 1.6rem; height: 1.6rem; display: none; align-items: center; justify-content: center; cursor: pointer; border: 2px solid #ffffff; font-size: 0.75rem;" title="Cambiar foto de perfil">
+              📷
+            </label>
+            <input type="file" id="inputFotoPerfil" accept="image/*" style="display: none;" disabled>
+
+            <!-- BOTÓN PARA ELIMINAR FOTO -->
+            <button type="button" id="btnBorrarFoto" style="position: absolute; top: -0.2rem; right: -0.2rem; background-color: #ef4444; color: #ffffff; border-radius: 50%; width: 1.5rem; height: 1.5rem; display: none; align-items: center; justify-content: center; cursor: pointer; border: 2px solid #ffffff; font-size: 0.7rem;" title="Borrar foto de perfil">
+              🗑️
+            </button>
+          </div>
+
+          <div>
+            <h2 id="txtNombrePerfil" style="font-size: 1.25rem; font-weight: 600; color: #0f172a; margin: 0 0 0.25rem 0;">
+              Usuario
+            </h2>
+            <span id="badgeRolPerfil" style="font-size: 0.75rem; font-weight: 600; color: #1a68ff; background-color: #eff6ff; padding: 0.25rem 0.75rem; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.03em;">
+              CLIENTE
+            </span>
+          </div>
+
+        </div>
+
+        <!-- CAMPOS DEL FORMULARIO -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 1.25rem;">
+          <div>
+            <label style="display: block; font-size: 0.85rem; font-weight: 500; color: #334155; margin-bottom: 0.4rem;">Nombres *</label>
+            <input type="text" id="inputNombres" required disabled placeholder="Tus nombres" style="width: 100%; box-sizing: border-box; padding: 0.7rem 0.85rem; border-radius: 0.65rem; border: 1px solid #e2e8f0; background-color: #f8fafc; color: #0f172a; font-size: 0.9rem; font-weight: 400; outline: none;">
+          </div>
+
+          <div>
+            <label style="display: block; font-size: 0.85rem; font-weight: 500; color: #334155; margin-bottom: 0.4rem;">Apellidos *</label>
+            <input type="text" id="inputApellidos" required disabled placeholder="Tus apellidos" style="width: 100%; box-sizing: border-box; padding: 0.7rem 0.85rem; border-radius: 0.65rem; border: 1px solid #e2e8f0; background-color: #f8fafc; color: #0f172a; font-size: 0.9rem; font-weight: 400; outline: none;">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 1.25rem;">
+          <div>
+            <label style="display: block; font-size: 0.85rem; font-weight: 500; color: #334155; margin-bottom: 0.4rem;">Correo electrónico *</label>
+            <input type="email" id="inputCorreo" required disabled placeholder="ejemplo@correo.com" style="width: 100%; box-sizing: border-box; padding: 0.7rem 0.85rem; border-radius: 0.65rem; border: 1px solid #e2e8f0; background-color: #f8fafc; color: #0f172a; font-size: 0.9rem; font-weight: 400; outline: none;">
+          </div>
+
+          <div>
+            <label style="display: block; font-size: 0.85rem; font-weight: 500; color: #334155; margin-bottom: 0.4rem;">Teléfono de contacto</label>
+            <input type="text" id="inputTelefono" disabled placeholder="+57 300 000 0000" style="width: 100%; box-sizing: border-box; padding: 0.7rem 0.85rem; border-radius: 0.65rem; border: 1px solid #e2e8f0; background-color: #f8fafc; color: #0f172a; font-size: 0.9rem; font-weight: 400; outline: none;">
+          </div>
+        </div>
+
+        <!-- DIRECCIÓN PRINCIPAL INFORMATIVA (SOLO MOSTRAR SI ES CLIENTE) -->
+        <div id="seccionDireccionPrincipal" style="margin-bottom: 1.5rem;">
+          <label style="display: block; font-size: 0.85rem; font-weight: 500; color: #334155; margin-bottom: 0.4rem;">Dirección Principal</label>
+          <input type="text" id="inputDireccionPrincipal" readonly placeholder="Cargando dirección principal..." style="width: 100%; box-sizing: border-box; padding: 0.7rem 0.85rem; border-radius: 0.65rem; border: 1px solid #e2e8f0; background-color: #f8fafc; color: #475569; font-size: 0.9rem; font-weight: 400; outline: none; cursor: default;">
+        </div>
+
+        <!-- BIOGRAFÍA SOLO SI ES PROVEEDOR -->
+        <div id="seccionProveedor" style="display: none; margin-bottom: 1.5rem; border-top: 1px solid #f1f5f9; padding-top: 1.25rem;">
+          <label style="display: block; font-size: 0.85rem; font-weight: 500; color: #334155; margin-bottom: 0.4rem;">Presentación / Biografía profesional</label>
+          <textarea id="inputBiografia" rows="3" disabled placeholder="Describe tu experiencia profesional..." style="width: 100%; box-sizing: border-box; padding: 0.7rem 0.85rem; border-radius: 0.65rem; border: 1px solid #e2e8f0; background-color: #f8fafc; font-size: 0.9rem; font-weight: 400; resize: vertical; outline: none;"></textarea>
+        </div>
+
+        <!-- ACCIONES DE EDICIÓN (OCULTAS INICIALMENTE) -->
+        <div id="contenedorAcciones" style="display: none; align-items: center; gap: 1rem; margin-top: 1rem;">
+          <button type="submit" id="btnGuardarPerfil" style="background-color: #1a68ff; color: #ffffff; font-weight: 600; padding: 0.75rem 1.5rem; border-radius: 0.65rem; border: none; font-size: 0.9rem; cursor: pointer; transition: background-color 0.2s ease;">
+            Guardar cambios
+          </button>
+          <button type="button" id="btnCancelarEdicion" style="background-color: #f1f5f9; color: #475569; font-weight: 600; padding: 0.75rem 1.5rem; border-radius: 0.65rem; border: none; font-size: 0.9rem; cursor: pointer;">
+            Cancelar
+          </button>
+        </div>
+      </form>
+
+    </div>
+
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.getElementById('formPerfil');
+  const msjBox = document.getElementById('msjPerfil');
+  const inputFoto = document.getElementById('inputFotoPerfil');
+  const btnCamara = document.getElementById('btnCamaraFoto');
+  const btnBorrarFoto = document.getElementById('btnBorrarFoto');
+  const imgAvatar = document.getElementById('imgAvatarFoto');
+  const txtIniciales = document.getElementById('txtAvatarIniciales');
+  const seccionProv = document.getElementById('seccionProveedor');
+  const seccionDir = document.getElementById('seccionDireccionPrincipal');
+
+  const btnEditar = document.getElementById('btnEditarPerfil');
+  const btnCancelar = document.getElementById('btnCancelarEdicion');
+  const contenedorAcciones = document.getElementById('contenedorAcciones');
+
+  const camposEditables = [
+    document.getElementById('inputNombres'),
+    document.getElementById('inputApellidos'),
+    document.getElementById('inputCorreo'),
+    document.getElementById('inputTelefono'),
+    document.getElementById('inputBiografia')
+  ];
+
+  const ENDPOINT_USUARIO = '/api/usuarios/perfil/';
+  const ENDPOINT_DIRECCIONES = '/api/usuarios/direcciones/';
+  const ENDPOINT_PROVEEDOR = '/api/proveedores/mi-perfil/';
+
+  let rolActual = 'CLIENTE';
+  
+  // Guardará el estado exacto recibido de la BD/API para restaurar al cancelar
+  let estadoGuardadoUltimo = {
+    nombres: '',
+    apellidos: '',
+    email: '',
+    telefono: '',
+    biografia: '',
+    foto: ''
+  };
+
+  // Control del estado del botón de borrar foto
+  function actualizarBotonBorrar(enModoEdicion) {
+    const tieneFoto = imgAvatar.style.display !== 'none' && imgAvatar.src !== '';
+    if (btnBorrarFoto) {
+      btnBorrarFoto.style.display = (enModoEdicion && tieneFoto) ? 'flex' : 'none';
+    }
+  }
+
+  // Alternar entre Modo Lectura / Modo Edición
+  function alternarModoEdicion(editar) {
+    camposEditables.forEach(input => {
+      if (!input) return;
+      if (input.id === 'inputBiografia' && (rolActual !== 'PROVEEDOR' && rolActual !== 'PRO')) return;
+      
+      input.disabled = !editar;
+      input.style.backgroundColor = editar ? '#ffffff' : '#f8fafc';
+      input.style.borderColor = editar ? '#cbd5e1' : '#e2e8f0';
+    });
+
+    if (inputFoto) inputFoto.disabled = !editar;
+    if (btnCamara) {
+      btnCamara.style.display = editar ? 'flex' : 'none';
+    }
+
+    actualizarBotonBorrar(editar);
+
+    if (contenedorAcciones) contenedorAcciones.style.display = editar ? 'flex' : 'none';
+    if (btnEditar) btnEditar.style.display = editar ? 'none' : 'flex';
+  }
+
+  // Restaurar datos al presionar CANCELAR
+  function restaurarUltimoEstado() {
+    document.getElementById('inputNombres').value = estadoGuardadoUltimo.nombres || '';
+    document.getElementById('inputApellidos').value = estadoGuardadoUltimo.apellidos || '';
+    document.getElementById('inputCorreo').value = estadoGuardadoUltimo.email || '';
+    document.getElementById('inputTelefono').value = estadoGuardadoUltimo.telefono || '';
+    document.getElementById('inputBiografia').value = estadoGuardadoUltimo.biografia || '';
+
+    const nomComp = ((estadoGuardadoUltimo.nombres || '') + ' ' + (estadoGuardadoUltimo.apellidos || '')).trim() || estadoGuardadoUltimo.email.split('@')[0] || 'Usuario';
+    document.getElementById('txtNombrePerfil').innerText = nomComp;
+
+    if (estadoGuardadoUltimo.foto) {
+      localStorage.setItem('bec_foto_perfil', estadoGuardadoUltimo.foto);
+      imgAvatar.src = estadoGuardadoUltimo.foto;
+      imgAvatar.style.display = 'block';
+      txtIniciales.style.display = 'none';
+    } else {
+      localStorage.removeItem('bec_foto_perfil');
+      imgAvatar.src = '';
+      imgAvatar.style.display = 'none';
+      const init1 = (estadoGuardadoUltimo.nombres[0] || estadoGuardadoUltimo.email[0] || 'U');
+      const init2 = (estadoGuardadoUltimo.apellidos[0] || 'S');
+      txtIniciales.innerText = (init1 + init2).toUpperCase();
+      txtIniciales.style.display = 'inline';
+    }
+
+    if (inputFoto) inputFoto.value = '';
+  }
+
+  if (btnEditar) {
+    btnEditar.addEventListener('click', function() {
+      alternarModoEdicion(true);
+    });
+  }
+
+  if (btnCancelar) {
+    btnCancelar.addEventListener('click', function() {
+      restaurarUltimoEstado();
+      alternarModoEdicion(false);
+      if (msjBox) msjBox.innerHTML = '';
+    });
+  }
+
+  // Previsualización de foto localmente
+  if (inputFoto) {
+    inputFoto.addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+          const fotoBase64 = evt.target.result;
+          imgAvatar.src = fotoBase64;
+          imgAvatar.style.display = 'block';
+          txtIniciales.style.display = 'none';
+          actualizarBotonBorrar(true);
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+  }
+
+  // Acción para borrar foto temporalmente
+  if (btnBorrarFoto) {
+    btnBorrarFoto.addEventListener('click', function() {
+      if (inputFoto) inputFoto.value = '';
+      imgAvatar.src = '';
+      imgAvatar.style.display = 'none';
+      txtIniciales.style.display = 'inline';
+      actualizarBotonBorrar(true);
+    });
+  }
+
+  // Renderizar información en inputs y avatar
+  function pintarDatos(u) {
+    if (!u) return;
+
+    const nombres = u.nombres || u.first_name || '';
+    const apellidos = u.apellidos || u.last_name || '';
+    const email = u.email || u.correo || '';
+    const telefono = u.telefono || '';
+    const fotoLocal = localStorage.getItem('bec_foto_perfil') || '';
+
+    rolActual = (u.rol || 'CLIENTE').toUpperCase();
+
+    // Guardar para restauración
+    estadoGuardadoUltimo.nombres = nombres;
+    estadoGuardadoUltimo.apellidos = apellidos;
+    estadoGuardadoUltimo.email = email;
+    estadoGuardadoUltimo.telefono = telefono;
+    estadoGuardadoUltimo.foto = fotoLocal;
+
+    const nombreCompleto = (nombres + ' ' + apellidos).trim() || email.split('@')[0] || 'Usuario';
+    document.getElementById('txtNombrePerfil').innerText = nombreCompleto;
+    document.getElementById('inputNombres').value = nombres;
+    document.getElementById('inputApellidos').value = apellidos;
+    document.getElementById('inputCorreo').value = email;
+    document.getElementById('inputTelefono').value = telefono;
+
+    const badge = document.getElementById('badgeRolPerfil');
+
+    // Manejo condicional de Proveedor vs Cliente
+    if (rolActual === 'PROVEEDOR' || rolActual === 'PRO') {
+      badge.innerText = 'PROVEEDOR DE SERVICIOS';
+      badge.style.color = '#0d9488';
+      badge.style.backgroundColor = '#ccfbf1';
+      if (seccionProv) seccionProv.style.display = 'block';
+      if (seccionDir) seccionDir.style.display = 'none'; // Ocultar dirección para proveedores
+    } else {
+      badge.innerText = 'CLIENTE REGISTRADO';
+      badge.style.color = '#1a68ff';
+      badge.style.backgroundColor = '#eff6ff';
+      if (seccionProv) seccionProv.style.display = 'none';
+      if (seccionDir) seccionDir.style.display = 'block'; // Mostrar dirección para clientes
+    }
+
+    if (fotoLocal) {
+      imgAvatar.src = fotoLocal;
+      imgAvatar.style.display = 'block';
+      txtIniciales.style.display = 'none';
+    } else {
+      const init1 = nombres[0] || email[0] || 'U';
+      const init2 = apellidos[0] || (email[1] ? email[1] : 'S');
+      txtIniciales.innerText = (init1 + init2).toUpperCase();
+      txtIniciales.style.display = 'inline';
+      imgAvatar.style.display = 'none';
+    }
+  }
+
+  // Carga inmediata desde localStorage
+  try {
+    const perfilLocal = JSON.parse(localStorage.getItem('bec_perfil') || '{}');
+    if (perfilLocal && (perfilLocal.email || perfilLocal.nombres || perfilLocal.usuario)) {
+      pintarDatos(perfilLocal.usuario || perfilLocal);
+    }
+  } catch(e) {}
+
+  // Carga desde API
+  function cargarPerfilAPI() {
+    if (!window.BEC || !window.BEC.api) return;
+
+    window.BEC.api(ENDPOINT_USUARIO).then(function(res) {
+      if (res && res.ok && res.data) {
+        pintarDatos(res.data.usuario || res.data);
+      }
+    });
+
+    // Cargar Dirección Principal solo si es Cliente
+    if (rolActual !== 'PROVEEDOR' && rolActual !== 'PRO') {
+      window.BEC.api(ENDPOINT_DIRECCIONES).then(function(res) {
+        const inputDir = document.getElementById('inputDireccionPrincipal');
+        if (!inputDir) return;
+
+        if (res && res.ok) {
+          const lista = window.BEC.lista(res.data);
+          const principal = lista.find(d => d.es_principal) || lista[0];
+
+          if (principal) {
+            const ciudadStr = principal.ciudad ? `, ${principal.ciudad}` : '';
+            const aliasStr = principal.alias ? ` (${principal.alias})` : '';
+            inputDir.value = (principal.direccion_texto || principal.direccion || 'Sin dirección') + ciudadStr + aliasStr;
+          } else {
+            inputDir.value = 'No has registrado direcciones aún.';
+          }
+        } else {
+          inputDir.value = 'No hay direcciones registradas.';
+        }
+      });
+    }
+
+    if (rolActual === 'PROVEEDOR' || rolActual === 'PRO') {
+      window.BEC.api(ENDPOINT_PROVEEDOR).then(function(res) {
+        if (res && res.ok && res.data) {
+          const bio = res.data.descripcion_profesional || res.data.biografia || '';
+          document.getElementById('inputBiografia').value = bio;
+          estadoGuardadoUltimo.biografia = bio;
+        }
+      });
+    }
+  }
+
+  // Guardar formulario
+  if (form) {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      if (msjBox) msjBox.innerHTML = '';
+
+      const btn = document.getElementById('btnGuardarPerfil');
+      btn.disabled = true;
+      btn.textContent = 'Guardando...';
+
+      const payload = {
+        nombres: document.getElementById('inputNombres').value.trim(),
+        apellidos: document.getElementById('inputApellidos').value.trim(),
+        email: document.getElementById('inputCorreo').value.trim(),
+        telefono: document.getElementById('inputTelefono').value.trim()
+      };
+
+      // Si la foto cambió en la vista previa
+      if (imgAvatar.style.display !== 'none' && imgAvatar.src) {
+        localStorage.setItem('bec_foto_perfil', imgAvatar.src);
+        estadoGuardadoUltimo.foto = imgAvatar.src;
+      } else {
+        localStorage.removeItem('bec_foto_perfil');
+        estadoGuardadoUltimo.foto = '';
+      }
+
+      window.BEC.api(ENDPOINT_USUARIO, {
+        method: 'PATCH',
+        body: payload
+      }).then(function(res) {
+        btn.disabled = false;
+        btn.textContent = 'Guardar cambios';
+
+        if (res && res.ok) {
+          if (msjBox) {
+            msjBox.innerHTML = '<div style="background-color: #f0fdf4; color: #166534; padding: 0.7rem 1rem; border-radius: 0.65rem; border: 1px solid #bbf7d0; font-weight: 600; font-size: 0.85rem; margin-bottom: 1rem;">¡Perfil actualizado con éxito!</div>';
+          }
+          
+          try {
+            const perfilLocal = JSON.parse(localStorage.getItem('bec_perfil') || '{}');
+            Object.assign(perfilLocal, payload);
+            localStorage.setItem('bec_perfil', JSON.stringify(perfilLocal));
+          } catch(e) {}
+
+          if (rolActual === 'PROVEEDOR' || rolActual === 'PRO') {
+            const bio = document.getElementById('inputBiografia').value.trim();
+            estadoGuardadoUltimo.biografia = bio;
+            window.BEC.api(ENDPOINT_PROVEEDOR, {
+              method: 'PATCH',
+              body: { descripcion_profesional: bio, biografia: bio }
+            });
+          }
+
+          // Actualizar estado persistido
+          estadoGuardadoUltimo.nombres = payload.nombres;
+          estadoGuardadoUltimo.apellidos = payload.apellidos;
+          estadoGuardadoUltimo.email = payload.email;
+          estadoGuardadoUltimo.telefono = payload.telefono;
+
+          cargarPerfilAPI();
+          alternarModoEdicion(false);
+        } else {
+          const errMsj = (res.data && (res.data.detail || JSON.stringify(res.data))) ? (res.data.detail || JSON.stringify(res.data)) : 'No se pudo guardar la información.';
+          if (msjBox) {
+            msjBox.innerHTML = '<div style="background-color: #fef2f2; color: #991b1b; padding: 0.7rem 1rem; border-radius: 0.65rem; border: 1px solid #fecaca; font-weight: 600; font-size: 0.85rem; margin-bottom: 1rem;">' + errMsj + '</div>';
+          }
+        }
+      }).catch(function() {
+        btn.disabled = false;
+        btn.textContent = 'Guardar cambios';
+        if (msjBox) {
+          msjBox.innerHTML = '<div style="background-color: #fef2f2; color: #991b1b; padding: 0.7rem 1rem; border-radius: 0.65rem; border: 1px solid #fecaca; font-weight: 600; font-size: 0.85rem; margin-bottom: 1rem;">Error de conexión.</div>';
+        }
+      });
+    });
+  }
+
+  cargarPerfilAPI();
+});
+</script>
+{% endblock %}

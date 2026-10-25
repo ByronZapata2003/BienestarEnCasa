@@ -1,0 +1,154 @@
+REPORTE: CONEXIÓN DE paginas_urls.py CON urls.py
+Proyecto: BienestarEnCasa
+Fecha: 2026-10-10
+======================================================================
+
+1. QUÉ SE CAMBIÓ
+----------------------------------------------------------------------
+Archivo modificado: BienestarEnCasa/urls.py
+
+a) Se agregó al final de urlpatterns (antes del "+ static(...)"):
+
+       path('', include('BienestarEnCasa.paginas_urls')),
+
+b) Se corrigió una ruta que ya estaba rota:
+
+       antes:   path('api/auth/', include('usuarios.urls')),
+       ahora:   path('api/auth/', include('usuarios.urls.urls')),
+
+   Motivo: los archivos de URLs de "usuarios" se movieron a la carpeta
+   usuarios/urls/ (api_urls.py, proveedores_urls.py, urls.py). Esa
+   carpeta no tiene __init__.py ni variable urlpatterns, así que
+   include('usuarios.urls') apuntaba a la carpeta y no al archivo.
+   Django fallaba al arrancar con:
+     ImproperlyConfigured: The included URLconf '<module 'usuarios.urls'
+     ...>' does not appear to have any patterns in it.
+   Las otras dos líneas (usuarios.urls.api_urls y
+   usuarios.urls.proveedores_urls) ya estaban bien.
+
+No se modificó paginas_urls.py ni ninguna ruta de la API.
+
+
+2. CÓMO SE CONECTA paginas_urls.py CON urls.py
+----------------------------------------------------------------------
+urls.py es el "URLconf raíz" (settings.ROOT_URLCONF). Cuando llega una
+petición, Django recorre su lista urlpatterns de arriba hacia abajo y
+usa la PRIMERA ruta que coincida.
+
+Orden actual en urls.py:
+
+   admin/                         -> panel de administración
+   api/auth/                      -> usuarios/urls/urls.py        (API)
+   api/usuarios/                  -> usuarios/urls/api_urls.py    (API)
+   api/proveedores/               -> usuarios/urls/proveedores_urls.py (API)
+   api/catalogo/                  -> catalogo/urls.py             (API)
+   api/solicitudes/               -> solicitudes/urls.py          (API)
+   recuperar-password/ ...        -> vistas de Django para la contraseña
+   restablecer/ ...               -> vistas de Django para la contraseña
+   ''  (prefijo vacío)            -> BienestarEnCasa/paginas_urls.py (HTML)
+   + static(MEDIA_URL)            -> archivos subidos (media)
+
+include('BienestarEnCasa.paginas_urls') con prefijo '' significa que
+las rutas de paginas_urls.py quedan "pegadas" directamente a la raíz
+del sitio. Por ejemplo 'catalogo/' en paginas_urls.py se atiende en
+http://localhost:8000/catalogo/.
+
+Por qué va de último:
+   - Las rutas de la API empiezan con "api/", las del admin con
+     "admin/" y las de contraseña con "recuperar-password/" o
+     "restablecer/". Ninguna ruta de paginas_urls.py empieza igual, así
+     que no hay choques.
+   - Aun así, al ponerlo al final, si alguien agrega en el futuro una
+     página con un nombre que coincida, las rutas existentes siguen
+     teniendo prioridad y no se "tapan".
+
+Ejemplo sin choque:
+   /iniciar-sesion/           -> página HTML (paginas_urls.py)
+   /api/auth/iniciar-sesion/  -> endpoint de la API (usuarios/urls/urls.py)
+   Son direcciones distintas, por eso conviven sin problema.
+
+
+3. CÓMO paginas_urls.py ENTREGA LAS PÁGINAS
+----------------------------------------------------------------------
+paginas_urls.py define una función auxiliar:
+
+   def pagina(plantilla):
+       return TemplateView.as_view(template_name=plantilla)
+
+TemplateView es una vista genérica de Django que solo renderiza la
+plantilla indicada; no consulta la base de datos. Las plantillas se
+buscan en la carpeta frontend/templates/ (settings: TEMPLATES['DIRS'] =
+FRONTEND_DIR / 'templates').
+
+Los datos (servicios, solicitudes, perfil, etc.) NO los pone el
+servidor en la página: cada plantilla, desde JavaScript, llama a la
+API (/api/...) enviando el token JWT. Así las páginas y la API están
+separadas: la página es la "cáscara" y la API llena el contenido.
+
+La ruta '' (raíz) usa RedirectView para mandar al catálogo:
+   /  -> redirección 302 a /catalogo/
+
+
+4. TABLA DE RUTAS DE PÁGINAS
+----------------------------------------------------------------------
+URL                              name (para {% url %})       Plantilla
+-------------------------------  --------------------------  -----------------------------------
+/                                pagina-inicio               (redirige a pagina-catalogo)
+
+Usuarios
+/iniciar-sesion/                 pagina-login                users/iniciar-sesion.html
+/registro/                       pagina-registro             users/registro.html
+/mi-perfil/                      pagina-perfil               users/mi-perfil.html
+/mis-direcciones/                pagina-direcciones          users/direcciones.html
+
+Proveedor
+/panel-proveedor/                pagina-panel-proveedor      users/plantilla-proveedor.html
+/perfil-profesional/             pagina-perfil-proveedor     users/perfil-proveedor.html
+/zonas-atencion/                 pagina-zonas                users/zonas-atencion.html
+/mis-servicios/                  pagina-mis-servicios        catalogo/mis-servicios.html
+/mis-servicios/nuevo/            pagina-servicio-nuevo       catalogo/servicio-form.html
+/mis-servicios/<pk>/editar/      pagina-servicio-editar      catalogo/servicio-form.html
+
+Catálogo
+/catalogo/                       pagina-catalogo             catalogo/list-servicios.html
+/catalogo/<pk>/                  pagina-servicio             catalogo/detalle-servicio.html
+
+Solicitudes
+/solicitar/<pk>/                 pagina-solicitud-crear      solicitudes/solicitudes-crear.html
+/mis-solicitudes/                pagina-mis-solicitudes      solicitudes/mis-solicitudes.html
+/mis-solicitudes/<pk>/           pagina-solicitud-detalle    solicitudes/detalle-solicitud.html
+
+<pk> es un número entero (id del servicio o de la solicitud). La
+plantilla lo lee desde la URL en JavaScript para pedir el registro a
+la API.
+
+
+5. USO DE LOS NOMBRES EN LAS PLANTILLAS
+----------------------------------------------------------------------
+templates/base.html usa los "name" de las rutas con {% url %}, por
+ejemplo:
+
+   <a href="{% url 'pagina-catalogo' %}">Catálogo</a>
+
+y además arma un objeto de rutas para el JavaScript:
+
+   catalogo: "{% url 'pagina-catalogo' %}",
+   servicio: "{% url 'pagina-servicio' 0 %}",   (el 0 se reemplaza por el id)
+
+Antes de este cambio esas rutas no estaban registradas, así que
+{% url ... %} fallaba con NoReverseMatch al abrir cualquier página que
+heredara de base.html. Ahora todas se resuelven.
+
+
+6. VERIFICACIÓN REALIZADA
+----------------------------------------------------------------------
+- "python manage.py check": sin errores (solo queda un aviso previo
+  sobre DEFAULT_AUTO_FIELD en la app solicitudes, que no tiene que ver
+  con este cambio).
+- Se hizo una petición GET a cada página con el cliente de pruebas de
+  Django:
+     /                 -> 302 (redirige a /catalogo/)
+     las 15 páginas    -> 200
+     /recuperar-password/ -> 200 (sigue funcionando)
+- reverse('iniciar-sesion') sigue dando /api/auth/iniciar-sesion/, es
+  decir, las rutas de la API no cambiaron.

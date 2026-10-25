@@ -1,0 +1,289 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Mis Servicios - Bienestar en Casa{% endblock %}
+
+{% block header_nav %}
+    {% include 'nav_proveedor.html' %}
+{% endblock %}
+
+{% block body %}
+<div style="background-color: #f8fafc; min-height: calc(100vh - 72px); padding: 2.5rem 1rem; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; box-sizing: border-box;">
+  <div style="max-width: 68rem; margin: 0 auto;">
+    
+    <!-- Encabezado -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+      <div>
+        <h1 style="font-size: 2.25rem; font-weight: 800; color: #0f172a; margin: 0 0 0.25rem 0;">
+          Mis Servicios
+        </h1>
+        <p style="color: #64748b; font-size: 0.95rem; margin: 0;">
+          Administra el catálogo de servicios que ofreces a los clientes.
+        </p>
+      </div>
+
+      <button type="button" id="btnAbrirModalServicio" style="background-color: #0d9488; color: #ffffff; font-weight: 700; padding: 0.75rem 1.25rem; border-radius: 0.75rem; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.9rem;">
+        <svg style="width: 1.1rem; height: 1.1rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+        Agregar nuevo servicio
+      </button>
+    </div>
+
+    <!-- Rejilla de Servicios -->
+    <div id="gridMisServicios" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.25rem;">
+      <div style="background-color: #ffffff; border-radius: 1.25rem; border: 1px solid #e2e8f0; padding: 3rem; text-align: center; color: #64748b; grid-column: 1 / -1;">
+        Cargando tus servicios registrados...
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL CREAR NUEVO SERVICIO -->
+<div id="modalNuevoServicio" style="display: none; position: fixed; inset: 0; background-color: rgba(15, 23, 42, 0.5); backdrop-filter: blur(4px); z-index: 9999; align-items: center; justify-content: center; padding: 1rem;">
+  <div style="background-color: #ffffff; border-radius: 1.25rem; width: 100%; max-width: 32rem; padding: 2rem; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); box-sizing: border-box; position: relative;">
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+      <h2 style="font-size: 1.25rem; font-weight: 800; color: #0f172a; margin: 0;">Agregar nuevo servicio</h2>
+      <button type="button" id="btnCerrarModalServicio" style="background: none; border: none; font-size: 1.5rem; color: #64748b; cursor: pointer; line-height: 1;">&times;</button>
+    </div>
+
+    <div id="msjModalServicio"></div>
+
+    <form id="formCrearServicio" novalidate>
+      {% csrf_token %}
+      <div style="margin-bottom: 1rem;">
+        <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #334155; margin-bottom: 0.35rem;">Nombre del servicio *</label>
+        <input type="text" id="inputNombreServicio" required placeholder="Ej: Masaje a domicilio" style="width: 100%; box-sizing: border-box; padding: 0.75rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; outline: none; font-size: 0.9rem;">
+      </div>
+
+      <div style="margin-bottom: 1rem;">
+        <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #334155; margin-bottom: 0.35rem;">Categoría *</label>
+        <select id="selectCategoriaServicio" style="width: 100%; box-sizing: border-box; padding: 0.75rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; outline: none; font-size: 0.9rem; background: #fff;">
+          <option value="">Cargando categorías...</option>
+        </select>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+        <div>
+          <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #334155; margin-bottom: 0.35rem;">Precio ($ COP) *</label>
+          <input type="number" id="inputPrecioServicio" required min="1000" step="500" placeholder="30000" style="width: 100%; box-sizing: border-box; padding: 0.75rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; outline: none; font-size: 0.9rem;">
+        </div>
+
+        <div>
+          <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #334155; margin-bottom: 0.35rem;">Duración (min) *</label>
+          <input type="number" id="inputDuracionServicio" required min="15" step="15" value="60" style="width: 100%; box-sizing: border-box; padding: 0.75rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; outline: none; font-size: 0.9rem;">
+        </div>
+      </div>
+
+      <div style="margin-bottom: 1.5rem;">
+        <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #334155; margin-bottom: 0.35rem;">Descripción del servicio (opcional)</label>
+        <textarea id="inputDescServicio" rows="3" placeholder="Detalla lo que incluye el servicio..." style="width: 100%; box-sizing: border-box; padding: 0.75rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; outline: none; font-size: 0.9rem; resize: vertical;"></textarea>
+      </div>
+
+      <button type="submit" id="btnGuardarServicio" style="width: 100%; background-color: #0d9488; color: #ffffff; font-weight: 700; padding: 0.85rem; border-radius: 0.75rem; border: none; font-size: 0.95rem; cursor: pointer;">
+        Guardar servicio
+      </button>
+    </form>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const grid = document.getElementById('gridMisServicios');
+  const modal = document.getElementById('modalNuevoServicio');
+  const btnAbrir = document.getElementById('btnAbrirModalServicio');
+  const btnCerrar = document.getElementById('btnCerrarModalServicio');
+  const form = document.getElementById('formCrearServicio');
+  const msjBox = document.getElementById('msjModalServicio');
+  const selectCat = document.getElementById('selectCategoriaServicio');
+
+  // Función global para eliminar servicio con petición DELETE
+  window.eliminarServicio = function(servicioId, nombreServicio) {
+    if (!confirm('¿Estás seguro de que deseas eliminar el servicio "' + nombreServicio + '"?')) {
+      return;
+    }
+
+    var csrfToken = '';
+    var csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (csrfInput) csrfToken = csrfInput.value;
+
+    fetch('/api/catalogo/servicios/' + servicioId + '/', {
+      method: 'DELETE',
+      headers: {
+        'X-CSRFToken': csrfToken
+      },
+      credentials: 'same-origin'
+    })
+    .then(function(res) {
+      if (res.ok || res.status === 204) {
+        var card = document.getElementById('card-servicio-' + servicioId);
+        if (card) {
+          card.remove();
+        } else {
+          cargarServiciosProveedor();
+        }
+      } else {
+        alert('No se pudo eliminar el servicio. Verifica que tengas los permisos correspondientes.');
+      }
+    })
+    .catch(function(err) {
+      console.error('Error al eliminar servicio:', err);
+      alert('Error de conexión al intentar eliminar el servicio.');
+    });
+  };
+
+  // Cargar Categorías desde la API
+  function cargarCategorias() {
+    fetch('/api/catalogo/categorias/')
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        const cats = Array.isArray(data) ? data : (data.results || []);
+        if (cats.length > 0) {
+          selectCat.innerHTML = cats.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+        } else {
+          selectCat.innerHTML = `<option value="1">Peluquería</option><option value="2">Masajes no Médicos</option>`;
+        }
+      })
+      .catch(function() {
+        selectCat.innerHTML = `<option value="1">Peluquería</option>`;
+      });
+  }
+
+  if (btnAbrir) {
+    btnAbrir.addEventListener('click', function() {
+      if (modal) modal.style.display = 'flex';
+      if (msjBox) msjBox.innerHTML = '';
+      cargarCategorias();
+    });
+  }
+
+  if (btnCerrar) {
+    btnCerrar.addEventListener('click', function() {
+      if (modal) modal.style.display = 'none';
+    });
+  }
+
+  function cargarServiciosProveedor() {
+    fetch('/api/catalogo/servicios/')
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        const lista = Array.isArray(data) ? data : (data.results || []);
+        
+        if (lista.length === 0) {
+          grid.innerHTML = `
+            <div style="background-color: #ffffff; border-radius: 1.25rem; border: 1px solid #e2e8f0; padding: 3rem; text-align: center; color: #64748b; grid-column: 1 / -1;">
+              Aún no tienes servicios registrados en tu catálogo.
+            </div>`;
+          return;
+        }
+
+        grid.innerHTML = lista.map(s => {
+          const precio = window.BEC && window.BEC.dinero ? window.BEC.dinero(s.precio) : ('$' + Number(s.precio || 0).toLocaleString('es-CO'));
+          const duracion = s.duracion_minutos || s.duracion || 60;
+          const categoria = (s.categoria && typeof s.categoria === 'object') ? (s.categoria.nombre || 'VARIOS') : (s.categoria_nombre || 'VARIOS');
+
+          return `
+            <div id="card-servicio-${s.id}" style="background-color: #ffffff; border-radius: 1.25rem; border: 1px solid #e2e8f0; padding: 1.5rem; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+              <div>
+                <span style="background-color: #ccfbf1; color: #0f766e; font-size: 0.75rem; font-weight: 800; padding: 0.2rem 0.6rem; border-radius: 9999px; text-transform: uppercase;">${categoria}</span>
+                <h3 style="font-size: 1.2rem; font-weight: 800; color: #0f172a; margin: 0.75rem 0 0.35rem 0;">${s.nombre}</h3>
+                <p style="color: #64748b; font-size: 0.85rem; margin: 0 0 1.25rem 0; line-height: 1.4;">${s.descripcion || 'Sin descripción.'}</p>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 1rem;">
+                <div>
+                  <div style="font-size: 1.25rem; font-weight: 800; color: #0f172a;">${precio}</div>
+                  <span style="font-size: 0.75rem; color: #94a3b8;">${duracion} min</span>
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <span style="background-color: #f0fdf4; color: #166534; font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.65rem; border-radius: 0.5rem; border: 1px solid #bbf7d0;">
+                    Activo
+                  </span>
+                  
+                  <!-- BOTÓN ELIMINAR SERVICIO -->
+                  <button type="button" onclick="eliminarServicio(${s.id}, '${s.nombre || 'este servicio'}')" style="background-color: #fef2f2; color: #dc2626; border: 1px solid #fecaca; font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.65rem; border-radius: 0.5rem; cursor: pointer; transition: all 0.2s ease;">
+                    Eliminar
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      })
+      .catch(function(err) {
+        console.error("Error cargando servicios:", err);
+      });
+  }
+
+  // Enviar Formulario al Backend
+  if (form) {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      const nombreVal = document.getElementById('inputNombreServicio').value.trim();
+      const categoriaVal = document.getElementById('selectCategoriaServicio').value;
+      const precioVal = document.getElementById('inputPrecioServicio').value;
+      const duracionVal = document.getElementById('inputDuracionServicio').value;
+      
+      const descElem = document.getElementById('inputDescServicio');
+      const descripcionVal = descElem ? descElem.value.trim() : "";
+
+      if (!nombreVal || !categoriaVal || !precioVal || !duracionVal) {
+        if (msjBox) {
+          msjBox.innerHTML = '<div style="color: #ef4444; font-size: 0.85rem; font-weight: 700; margin-bottom: 1rem;">Completa los campos obligatorios (*).</div>';
+        }
+        return;
+      }
+
+      const payload = {
+        nombre: nombreVal,
+        categoria: parseInt(categoriaVal),
+        precio: parseFloat(precioVal),
+        duracion_minutos: parseInt(duracionVal),
+        descripcion: descripcionVal
+      };
+
+      var csrfToken = '';
+      var csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
+      if (csrfInput) {
+        csrfToken = csrfInput.value;
+      }
+
+      fetch('/api/catalogo/servicios/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload)
+      })
+      .then(function(res) {
+        if (res.ok || res.status === 201) {
+          form.reset();
+          if (msjBox) msjBox.innerHTML = '';
+          if (modal) modal.style.display = 'none';
+          cargarServiciosProveedor();
+        } else {
+          return res.json().then(function(data) {
+            if (msjBox) {
+              var textoErr = typeof data === 'object' ? JSON.stringify(data) : 'Error al guardar.';
+              msjBox.innerHTML = '<div style="color: #ef4444; font-size: 0.85rem; font-weight: 700; margin-bottom: 1rem;">' + textoErr + '</div>';
+            }
+          });
+        }
+      })
+      .catch(function(err) {
+        console.error("Error al guardar servicio:", err);
+        if (msjBox) {
+          msjBox.innerHTML = '<div style="color: #ef4444; font-size: 0.85rem; font-weight: 700; margin-bottom: 1rem;">Error de conexión con el servidor.</div>';
+        }
+      });
+    });
+  }
+
+  cargarServiciosProveedor();
+});
+</script>
+{% endblock %}
