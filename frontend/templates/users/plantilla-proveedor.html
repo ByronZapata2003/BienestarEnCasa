@@ -114,14 +114,16 @@
       
       <div style="background-color: #ffffff; border-radius: 1.25rem; border: 1px solid #e2e8f0; padding: 1.75rem; margin-bottom: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
         <h3 style="font-size: 1.15rem; font-weight: 800; color: #0f172a; margin: 0 0 0.25rem 0;">Días de atención</h3>
-        <p style="color: #64748b; font-size: 0.9rem; margin: 0 0 1.25rem 0;">Selecciona los días en que estás disponible para atender.</p>
+        <p style="color: #64748b; font-size: 0.9rem; margin: 0 0 1.25rem 0;">Este horario es el mismo de Disponibilidad. Los clientes solo verán estas franjas.</p>
+        <div id="resumenHorarioReal" style="margin: 0 0 1rem 0; color: #0f172a; font-size: 0.9rem;">Cargando horario guardado...</div>
+        <p style="margin: 0 0 1rem 0;"><a href="/disponibilidad/" style="color: #0d9488; font-weight: 700;">Abrir configuración completa y periodos no disponibles</a></p>
         
         <div id="selectorDias" style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
-          <button type="button" class="btn-dia active" data-dia="LUNES" style="padding: 0.65rem 1.25rem; border-radius: 0.75rem; border: 1px solid #0d9488; background-color: #0d9488; color: #ffffff; font-weight: 700; cursor: pointer; font-size: 0.9rem;">Lunes</button>
-          <button type="button" class="btn-dia active" data-dia="MARTES" style="padding: 0.65rem 1.25rem; border-radius: 0.75rem; border: 1px solid #0d9488; background-color: #0d9488; color: #ffffff; font-weight: 700; cursor: pointer; font-size: 0.9rem;">Martes</button>
-          <button type="button" class="btn-dia active" data-dia="MIERCOLES" style="padding: 0.65rem 1.25rem; border-radius: 0.75rem; border: 1px solid #0d9488; background-color: #0d9488; color: #ffffff; font-weight: 700; cursor: pointer; font-size: 0.9rem;">Miércoles</button>
-          <button type="button" class="btn-dia active" data-dia="JUEVES" style="padding: 0.65rem 1.25rem; border-radius: 0.75rem; border: 1px solid #0d9488; background-color: #0d9488; color: #ffffff; font-weight: 700; cursor: pointer; font-size: 0.9rem;">Jueves</button>
-          <button type="button" class="btn-dia active" data-dia="VIERNES" style="padding: 0.65rem 1.25rem; border-radius: 0.75rem; border: 1px solid #0d9488; background-color: #0d9488; color: #ffffff; font-weight: 700; cursor: pointer; font-size: 0.9rem;">Viernes</button>
+          <button type="button" class="btn-dia" data-dia="LUNES" style="padding: 0.65rem 1.25rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; background-color: #ffffff; color: #334155; font-weight: 700; cursor: pointer; font-size: 0.9rem;">Lunes</button>
+          <button type="button" class="btn-dia" data-dia="MARTES" style="padding: 0.65rem 1.25rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; background-color: #ffffff; color: #334155; font-weight: 700; cursor: pointer; font-size: 0.9rem;">Martes</button>
+          <button type="button" class="btn-dia" data-dia="MIERCOLES" style="padding: 0.65rem 1.25rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; background-color: #ffffff; color: #334155; font-weight: 700; cursor: pointer; font-size: 0.9rem;">Miércoles</button>
+          <button type="button" class="btn-dia" data-dia="JUEVES" style="padding: 0.65rem 1.25rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; background-color: #ffffff; color: #334155; font-weight: 700; cursor: pointer; font-size: 0.9rem;">Jueves</button>
+          <button type="button" class="btn-dia" data-dia="VIERNES" style="padding: 0.65rem 1.25rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; background-color: #ffffff; color: #334155; font-weight: 700; cursor: pointer; font-size: 0.9rem;">Viernes</button>
           <button type="button" class="btn-dia" data-dia="SABADO" style="padding: 0.65rem 1.25rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; background-color: #ffffff; color: #334155; font-weight: 700; cursor: pointer; font-size: 0.9rem;">Sábado</button>
           <button type="button" class="btn-dia" data-dia="DOMINGO" style="padding: 0.65rem 1.25rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; background-color: #ffffff; color: #334155; font-weight: 700; cursor: pointer; font-size: 0.9rem;">Domingo</button>
         </div>
@@ -133,14 +135,14 @@
 
         <div id="selectorHoras" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 0.75rem;">
           <button type="button" class="btn-hora" data-hora="07:00:00" style="padding: 0.65rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; background-color: #ffffff; color: #334155; font-weight: 700; cursor: pointer;">07:00 AM</button>
-          <button type="button" class="btn-hora active" data-hora="08:00:00" style="padding: 0.65rem; border-radius: 0.75rem; border: 1px solid #0d9488; background-color: #0d9488; color: #ffffff; font-weight: 700; cursor: pointer;">✓ 08:00 AM</button>
-          <button type="button" class="btn-hora active" data-hora="09:00:00" style="padding: 0.65rem; border-radius: 0.75rem; border: 1px solid #0d9488; background-color: #0d9488; color: #ffffff; font-weight: 700; cursor: pointer;">✓ 09:00 AM</button>
-          <button type="button" class="btn-hora active" data-hora="10:00:00" style="padding: 0.65rem; border-radius: 0.75rem; border: 1px solid #0d9488; background-color: #0d9488; color: #ffffff; font-weight: 700; cursor: pointer;">✓ 10:00 AM</button>
-          <button type="button" class="btn-hora active" data-hora="11:00:00" style="padding: 0.65rem; border-radius: 0.75rem; border: 1px solid #0d9488; background-color: #0d9488; color: #ffffff; font-weight: 700; cursor: pointer;">✓ 11:00 AM</button>
-          <button type="button" class="btn-hora active" data-hora="12:00:00" style="padding: 0.65rem; border-radius: 0.75rem; border: 1px solid #0d9488; background-color: #0d9488; color: #ffffff; font-weight: 700; cursor: pointer;">✓ 12:00 PM</button>
-          <button type="button" class="btn-hora active" data-hora="13:00:00" style="padding: 0.65rem; border-radius: 0.75rem; border: 1px solid #0d9488; background-color: #0d9488; color: #ffffff; font-weight: 700; cursor: pointer;">✓ 01:00 PM</button>
-          <button type="button" class="btn-hora active" data-hora="14:00:00" style="padding: 0.65rem; border-radius: 0.75rem; border: 1px solid #0d9488; background-color: #0d9488; color: #ffffff; font-weight: 700; cursor: pointer;">✓ 02:00 PM</button>
-          <button type="button" class="btn-hora active" data-hora="15:00:00" style="padding: 0.65rem; border-radius: 0.75rem; border: 1px solid #0d9488; background-color: #0d9488; color: #ffffff; font-weight: 700; cursor: pointer;">✓ 03:00 PM</button>
+          <button type="button" class="btn-hora" data-hora="08:00:00" style="padding: 0.65rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; background-color: #ffffff; color: #334155; font-weight: 700; cursor: pointer;">08:00 AM</button>
+          <button type="button" class="btn-hora" data-hora="09:00:00" style="padding: 0.65rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; background-color: #ffffff; color: #334155; font-weight: 700; cursor: pointer;">09:00 AM</button>
+          <button type="button" class="btn-hora" data-hora="10:00:00" style="padding: 0.65rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; background-color: #ffffff; color: #334155; font-weight: 700; cursor: pointer;">10:00 AM</button>
+          <button type="button" class="btn-hora" data-hora="11:00:00" style="padding: 0.65rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; background-color: #ffffff; color: #334155; font-weight: 700; cursor: pointer;">11:00 AM</button>
+          <button type="button" class="btn-hora" data-hora="12:00:00" style="padding: 0.65rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; background-color: #ffffff; color: #334155; font-weight: 700; cursor: pointer;">12:00 PM</button>
+          <button type="button" class="btn-hora" data-hora="13:00:00" style="padding: 0.65rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; background-color: #ffffff; color: #334155; font-weight: 700; cursor: pointer;">01:00 PM</button>
+          <button type="button" class="btn-hora" data-hora="14:00:00" style="padding: 0.65rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; background-color: #ffffff; color: #334155; font-weight: 700; cursor: pointer;">02:00 PM</button>
+          <button type="button" class="btn-hora" data-hora="15:00:00" style="padding: 0.65rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; background-color: #ffffff; color: #334155; font-weight: 700; cursor: pointer;">03:00 PM</button>
           <button type="button" class="btn-hora" data-hora="16:00:00" style="padding: 0.65rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; background-color: #ffffff; color: #334155; font-weight: 700; cursor: pointer;">04:00 PM</button>
           <button type="button" class="btn-hora" data-hora="17:00:00" style="padding: 0.65rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; background-color: #ffffff; color: #334155; font-weight: 700; cursor: pointer;">05:00 PM</button>
         </div>
@@ -461,6 +463,115 @@ document.addEventListener('DOMContentLoaded', function() {
       `;
     }).join('');
   }
+
+
+  const MAPA_DIAS = {LUNES:0, MARTES:1, MIERCOLES:2, JUEVES:3, VIERNES:4, SABADO:5, DOMINGO:6};
+  const NOMBRES_DIA = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+
+  function pintarBoton(btn, activo) {
+    btn.classList.toggle('active', activo);
+    btn.style.backgroundColor = activo ? '#0d9488' : '#ffffff';
+    btn.style.color = activo ? '#ffffff' : '#334155';
+    btn.style.borderColor = activo ? '#0d9488' : '#e2e8f0';
+    if (btn.classList.contains('btn-hora')) {
+      const base = (btn.getAttribute('data-label') || btn.innerText.replace('✓ ', '')).trim();
+      btn.setAttribute('data-label', base);
+      btn.innerText = (activo ? '✓ ' : '') + base;
+    }
+  }
+
+  function csrf() {
+    var csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
+    return csrfInput ? csrfInput.value : '';
+  }
+
+  async function apiJson(url, opts) {
+    const res = await fetch(url, Object.assign({credentials:'same-origin', headers:{'X-CSRFToken': csrf()}}, opts || {}));
+    const data = res.status === 204 ? null : await res.json().catch(() => null);
+    if (!res.ok) throw data || new Error('error');
+    return data;
+  }
+
+  let horarioGuardado = [];
+
+  function horaAMin(h) {
+    const p = String(h).slice(0,5).split(':');
+    return parseInt(p[0],10)*60 + parseInt(p[1],10);
+  }
+
+  async function cargarHorarioPanel() {
+    const resumen = document.getElementById('resumenHorarioReal');
+    try {
+      const data = await apiJson('/api/proveedores/disponibilidad/');
+      horarioGuardado = Array.isArray(data) ? data : (data.results || []);
+    } catch (e) {
+      horarioGuardado = [];
+      if (resumen) resumen.textContent = 'No se pudo leer la disponibilidad. Inicia sesión como proveedor.';
+      return;
+    }
+    document.querySelectorAll('.btn-dia, .btn-hora').forEach(b => pintarBoton(b, false));
+    const dias = new Set(horarioGuardado.map(h => Number(h.dia_semana)));
+    document.querySelectorAll('.btn-dia').forEach(b => {
+      if (dias.has(MAPA_DIAS[b.getAttribute('data-dia')])) pintarBoton(b, true);
+    });
+    if (horarioGuardado.length) {
+      const mismos = horarioGuardado.every(h => h.hora_inicio === horarioGuardado[0].hora_inicio && h.hora_fin === horarioGuardado[0].hora_fin);
+      if (mismos) {
+        const ini = horaAMin(horarioGuardado[0].hora_inicio);
+        const fin = horaAMin(horarioGuardado[0].hora_fin);
+        document.querySelectorAll('.btn-hora').forEach(b => {
+          const m = horaAMin(b.getAttribute('data-hora'));
+          if (m >= ini && m < fin) pintarBoton(b, true);
+        });
+      }
+    }
+    if (resumen) {
+      if (!horarioGuardado.length) {
+        resumen.textContent = 'Aún no hay horario guardado. Lo que elijas aquí se publica a los clientes.';
+      } else {
+        resumen.innerHTML = horarioGuardado.map(h => '<div><strong>' + NOMBRES_DIA[Number(h.dia_semana)] + ':</strong> ' + String(h.hora_inicio).slice(0,5) + ' – ' + String(h.hora_fin).slice(0,5) + '</div>').join('');
+      }
+    }
+  }
+
+  document.getElementById('btnGuardarHorario')?.addEventListener('click', async function() {
+    const btn = this;
+    const diasSel = [...document.querySelectorAll('.btn-dia.active')].map(b => MAPA_DIAS[b.getAttribute('data-dia')]);
+    const horas = [...document.querySelectorAll('.btn-hora.active')].map(b => horaAMin(b.getAttribute('data-hora'))).sort((a,b)=>a-b);
+    if (diasSel.length && !horas.length) {
+      alert('Selecciona al menos una franja horaria.');
+      return;
+    }
+    const ini = horas.length ? horas[0] : null;
+    const fin = horas.length ? horas[horas.length-1] + 60 : null;
+    const fmt = m => String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0');
+    btn.disabled = true;
+    try {
+      const actuales = horarioGuardado.slice();
+      for (const h of actuales) {
+        if (!diasSel.includes(Number(h.dia_semana))) {
+          await apiJson('/api/proveedores/disponibilidad/' + h.id + '/', {method:'DELETE'});
+        }
+      }
+      for (const dia of diasSel) {
+        const existente = actuales.find(h => Number(h.dia_semana) === dia);
+        const body = JSON.stringify({dia_semana: dia, hora_inicio: fmt(ini), hora_fin: fmt(fin)});
+        if (existente) {
+          await apiJson('/api/proveedores/disponibilidad/' + existente.id + '/', {method:'PATCH', headers:{'Content-Type':'application/json','X-CSRFToken': csrf()}, body});
+        } else {
+          await apiJson('/api/proveedores/disponibilidad/', {method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken': csrf()}, body});
+        }
+      }
+      await cargarHorarioPanel();
+      alert('Horario guardado. El cliente verá exactamente estas franjas.');
+    } catch (e) {
+      alert((e && (e.hora_fin || e.detail || e.dia_semana)) ? JSON.stringify(e) : 'No se pudo guardar el horario.');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  cargarHorarioPanel();
 
   // Interacción Horario
   document.querySelectorAll('.btn-dia, .btn-hora').forEach(btn => {

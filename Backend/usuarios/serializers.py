@@ -7,14 +7,7 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from catalogo.serializers import ServicioSerializer
-from .models import (
-    DisponibilidadProveedor,
-    Direccion,
-    PeriodoNoDisponible,
-    PerfilProveedor,
-    PerfilUsuario,
-    ZonaAtencion,
-)
+from .models import Direccion, DisponibilidadProveedor, PerfilProveedor, PerfilUsuario, PeriodoNoDisponible, ZonaAtencion
 
 Usuario = get_user_model()
 
@@ -177,6 +170,7 @@ class ZonaAtencionSerializer(serializers.ModelSerializer):
         model = ZonaAtencion
         fields = ('id', 'ciudad', 'barrio_sector')
         read_only_fields = ('id',)
+
 
 
 class DisponibilidadProveedorSerializer(serializers.ModelSerializer):

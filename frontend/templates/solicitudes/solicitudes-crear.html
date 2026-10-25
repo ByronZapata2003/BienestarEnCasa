@@ -195,7 +195,7 @@
             <span style="font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; display: block; margin-bottom: 0.5rem;">
               DÍAS PERMITIDOS
             </span>
-            <div style="display: flex; flex-wrap: wrap; gap: 0.4rem;">
+            <div id="dias_permitidos" style="display: flex; flex-wrap: wrap; gap: 0.4rem;">
               <span class="day-pill">Lunes</span>
               <span class="day-pill">Martes</span>
               <span class="day-pill">Miércoles</span>
@@ -205,10 +205,10 @@
           </div>
 
           <div>
-            <span style="font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; display: block; margin-bottom: 0.5rem;">
-              HORARIOS DISPONIBLES (8 AM - 5 PM)
+            <span id="titulo_horarios" style="font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; display: block; margin-bottom: 0.5rem;">
+              HORARIOS DISPONIBLES
             </span>
-            <div style="display: flex; flex-wrap: wrap; gap: 0.4rem;">
+            <div id="lista_horarios" style="display: flex; flex-wrap: wrap; gap: 0.4rem;">
               <span class="time-pill">08:00 AM</span>
               <span class="time-pill">09:00 AM</span>
               <span class="time-pill">10:00 AM</span>
@@ -230,7 +230,7 @@
           <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 1rem; color: #475569; font-size: 0.9rem;">
             <li style="display: flex; gap: 0.75rem;">
               <span style="color: #2563eb;">•</span>
-              Atención únicamente de Lunes a Viernes de 8:00 AM a 5:00 PM.
+              <span id="texto_horario_rapido">El horario mostrado es el que configuró el proveedor.</span>
             </li>
             <li style="display: flex; gap: 0.75rem;">
               <span style="color: #2563eb;">•</span>
@@ -306,6 +306,8 @@ document.addEventListener('DOMContentLoaded', function() {
           servicioActual = s;
           if (namePreview) namePreview.textContent = s.nombre || s.titulo || 'Servicio de Bienestar';
           if (pricePreview) pricePreview.textContent = formatearDinero(s.precio);
+          var prov = s.proveedor_id || (s.proveedor && (s.proveedor.id || s.proveedor));
+          if (prov) cargarDisponibilidadProveedor(prov);
         } else {
           // Si la ruta directa no funciona, buscar en el catálogo general
           cargarDesdeCatalogoGeneral();
@@ -327,6 +329,8 @@ document.addEventListener('DOMContentLoaded', function() {
           servicioActual = encontrado;
           if (namePreview) namePreview.textContent = encontrado.nombre || 'Servicio de Bienestar';
           if (pricePreview) pricePreview.textContent = formatearDinero(encontrado.precio);
+          var prov2 = encontrado.proveedor_id || (encontrado.proveedor && (encontrado.proveedor.id || encontrado.proveedor));
+          if (prov2) cargarDisponibilidadProveedor(prov2);
         } else {
           if (namePreview) namePreview.textContent = 'Servicio #' + servicioIdUrl;
         }
@@ -343,26 +347,101 @@ document.addEventListener('DOMContentLoaded', function() {
     var dd = String(hoy.getDate()).padStart(2, '0');
     inputFecha.min = yyyy + '-' + mm + '-' + dd;
 
-    // Validación interactiva: Solo Lunes a Viernes
     inputFecha.addEventListener('change', function() {
-      if (!inputFecha.value) return;
-
-      var fechaSeleccionada = new Date(inputFecha.value + 'T00:00:00');
-      var diaSemana = fechaSeleccionada.getDay();
-
-      if (diaSemana === 0 || diaSemana === 6) {
-        if (errorFecha) {
-          errorFecha.textContent = 'Atención únicamente de Lunes a Viernes.';
-          errorFecha.style.display = 'block';
-        }
-        inputFecha.value = '';
-      } else {
-        if (errorFecha) {
-          errorFecha.textContent = '';
-          errorFecha.style.display = 'none';
-        }
-      }
+      aplicarDisponibilidadCliente(inputFecha.value);
     });
+  }
+
+  var disponibilidadProveedor = null;
+  var NOMBRES = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+
+  function fmt12(hhmm) {
+    var p = hhmm.split(':');
+    var h = parseInt(p[0], 10);
+    var m = p[1];
+    var ap = h >= 12 ? 'PM' : 'AM';
+    var h12 = h % 12 || 12;
+    return String(h12).padStart(2,'0') + ':' + m + ' ' + ap;
+  }
+
+  function pintarResumenDisponibilidad() {
+    var contDias = document.getElementById('dias_permitidos');
+    var contHoras = document.getElementById('lista_horarios');
+    var titulo = document.getElementById('titulo_horarios');
+    var rapido = document.getElementById('texto_horario_rapido');
+    if (!disponibilidadProveedor || !disponibilidadProveedor.configurado) {
+      if (rapido) rapido.textContent = 'Este proveedor aún no configuró su disponibilidad. Se muestra el horario general de Lunes a Viernes, 8:00 AM a 5:00 PM.';
+      return;
+    }
+    if (contDias) {
+      contDias.innerHTML = disponibilidadProveedor.dias.map(function(d) {
+        return '<span class="day-pill">' + NOMBRES[d.dia_semana] + ' ' + d.hora_inicio + '–' + d.hora_fin + '</span>';
+      }).join('');
+    }
+    if (titulo) titulo.textContent = 'HORARIO CONFIGURADO POR EL PROVEEDOR';
+    if (contHoras) {
+      contHoras.innerHTML = disponibilidadProveedor.dias.map(function(d) {
+        return '<span class="time-pill">' + NOMBRES[d.dia_semana] + ': ' + fmt12(d.hora_inicio) + ' – ' + fmt12(d.hora_fin) + '</span>';
+      }).join('');
+    }
+    if (rapido) rapido.textContent = 'Solo puedes solicitar dentro del horario que el proveedor configuró. Los periodos bloqueados no se pueden reservar.';
+  }
+
+  function aplicarDisponibilidadCliente(valorFecha) {
+    var select = document.getElementById('horario_disponible');
+    if (!valorFecha || !select) return;
+    if (!disponibilidadProveedor || !disponibilidadProveedor.configurado) {
+      var fechaSel = new Date(valorFecha + 'T00:00:00');
+      var jsDay = fechaSel.getDay();
+      if (jsDay === 0 || jsDay === 6) {
+        if (errorFecha) { errorFecha.textContent = 'Atención únicamente de Lunes a Viernes.'; errorFecha.style.display = 'block'; }
+        inputFecha.value = '';
+      } else if (errorFecha) { errorFecha.textContent = ''; errorFecha.style.display = 'none'; }
+      return;
+    }
+    var fecha = new Date(valorFecha + 'T00:00:00');
+    var diaPy = (fecha.getDay() + 6) % 7;
+    var bloqueado = (disponibilidadProveedor.periodos || []).some(function(p) {
+      return valorFecha >= p.fecha_inicio && valorFecha <= p.fecha_fin;
+    });
+    if (bloqueado) {
+      if (errorFecha) { errorFecha.textContent = 'El proveedor no está disponible en la fecha seleccionada.'; errorFecha.style.display = 'block'; }
+      select.innerHTML = '<option value="" disabled selected>Fecha no disponible</option>';
+      inputFecha.value = '';
+      return;
+    }
+    var franja = disponibilidadProveedor.dias.find(function(d) { return Number(d.dia_semana) === diaPy; });
+    if (!franja) {
+      if (errorFecha) { errorFecha.textContent = 'El proveedor no atiende el día seleccionado.'; errorFecha.style.display = 'block'; }
+      select.innerHTML = '<option value="" disabled selected>Día sin atención</option>';
+      inputFecha.value = '';
+      return;
+    }
+    if (errorFecha) { errorFecha.textContent = ''; errorFecha.style.display = 'none'; }
+    var ini = franja.hora_inicio.split(':').map(Number);
+    var fin = franja.hora_fin.split(':').map(Number);
+    var cursor = ini[0] * 60 + ini[1];
+    var limite = fin[0] * 60 + fin[1];
+    var html = '<option value="" disabled selected>Selecciona un horario (' + franja.hora_inicio + ' - ' + franja.hora_fin + ')</option>';
+    while (cursor < limite) {
+      var hh = String(Math.floor(cursor / 60)).padStart(2, '0');
+      var mm = String(cursor % 60).padStart(2, '0');
+      html += '<option value="' + hh + ':' + mm + ':00">' + fmt12(hh + ':' + mm) + '</option>';
+      cursor += 60;
+    }
+    select.innerHTML = html;
+  }
+
+  function cargarDisponibilidadProveedor(proveedorId) {
+    if (!proveedorId) return;
+    fetch('/api/proveedores/' + proveedorId + '/disponibilidad-publica/')
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(data) {
+        if (!data) return;
+        disponibilidadProveedor = data;
+        pintarResumenDisponibilidad();
+        if (inputFecha && inputFecha.value) aplicarDisponibilidadCliente(inputFecha.value);
+      });
   }
 
   // Cierre de sesión

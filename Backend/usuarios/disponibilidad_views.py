@@ -2,7 +2,8 @@ from django.contrib import messages
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from rest_framework import generics
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .authentication import CookieJWTAuthentication
@@ -227,3 +228,28 @@ class GestionarDisponibilidadPageView(APIView):
 
         messages.error(request._request, 'La operación solicitada no es válida.')
         return redirect('pagina-disponibilidad')
+
+
+class DisponibilidadPublicaView(APIView):
+    """Horario que el cliente puede consultar para armar la solicitud. Solo lectura."""
+    authentication_classes = ()
+    permission_classes = (AllowAny,)
+
+    def get(self, request, pk):
+        proveedor = get_object_or_404(PerfilProveedor, pk=pk)
+        dias = [
+            {
+                'dia_semana': d.dia_semana,
+                'hora_inicio': d.hora_inicio.strftime('%H:%M'),
+                'hora_fin': d.hora_fin.strftime('%H:%M'),
+            }
+            for d in proveedor.disponibilidades.all().order_by('dia_semana', 'hora_inicio')
+        ]
+        periodos = [
+            {
+                'fecha_inicio': p.fecha_inicio.isoformat(),
+                'fecha_fin': p.fecha_fin.isoformat(),
+            }
+            for p in proveedor.periodos_no_disponibles.all().order_by('fecha_inicio')
+        ]
+        return Response({'configurado': bool(dias), 'dias': dias, 'periodos': periodos})

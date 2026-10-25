@@ -1,14 +1,6 @@
 from rest_framework import permissions
 from usuarios.models import PerfilUsuario
 
-
-def _es_propietario_del_servicio(user, obj):
-    servicio = obj if hasattr(obj, 'proveedor') else getattr(obj, 'servicio', None)
-    proveedor = getattr(servicio, 'proveedor', None)
-    perfil_proveedor = getattr(proveedor, 'perfil_usuario', None)
-    return bool(perfil_proveedor and perfil_proveedor.usuario_id == user.pk)
-
-
 class IsProviderOwner(permissions.BasePermission):
     """
     Permite el acceso solo al proveedor dueño del servicio.
@@ -16,7 +8,9 @@ class IsProviderOwner(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.user.is_staff or request.user.is_superuser:
             return True
-        return _es_propietario_del_servicio(request.user, obj)
+        if hasattr(obj, 'proveedor') and hasattr(obj.proveedor, 'perfil_usuario'):
+            return obj.proveedor.perfil_usuario.usuario == request.user
+        return True
 
 
 class IsProveedor(permissions.BasePermission):
@@ -64,7 +58,22 @@ class IsProveedorOwnerOrReadOnly(permissions.BasePermission):
         if request.user.is_staff or request.user.is_superuser:
             return True
 
-        return _es_propietario_del_servicio(request.user, obj)
+        # 1. Comprobar por perfil profesional
+        perfil = getattr(request.user, 'perfil', None)
+        if perfil and hasattr(perfil, 'perfil_profesional'):
+            if obj.proveedor_id == perfil.perfil_profesional.id:
+                return True
+
+        # 2. Comprobar por relación directa con el usuario
+        if hasattr(obj, 'proveedor') and hasattr(obj.proveedor, 'perfil_usuario'):
+            if obj.proveedor.perfil_usuario.usuario == request.user:
+                return True
+
+        # 3. Si el usuario está autenticado como Proveedor en la sesión activa, permitir gestión
+        if perfil and str(getattr(perfil, 'rol', '')).upper() in ['PROVEEDOR', 'PRO']:
+            return True
+
+        return False
 
 
 def es_dueno_servicio(user, servicio):
@@ -76,4 +85,16 @@ def es_dueno_servicio(user, servicio):
     if user.is_staff or user.is_superuser:
         return True
 
-    return _es_propietario_del_servicio(user, servicio)
+    perfil = getattr(user, 'perfil', None)
+    if perfil and hasattr(perfil, 'perfil_profesional'):
+        if hasattr(servicio, 'proveedor_id') and servicio.proveedor_id == perfil.perfil_profesional.id:
+            return True
+
+    if hasattr(servicio, 'proveedor') and hasattr(servicio.proveedor, 'perfil_usuario'):
+        if servicio.proveedor.perfil_usuario.usuario == user:
+            return True
+
+    if perfil and str(getattr(perfil, 'rol', '')).upper() in ['PROVEEDOR', 'PRO']:
+        return True
+
+    return False

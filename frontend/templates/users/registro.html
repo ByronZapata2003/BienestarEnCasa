@@ -114,7 +114,6 @@
     .btn-register-submit:hover {
         background-color: #0052E0;
     }
-
     .register-footer {
         text-align: center;
         font-size: 0.9rem;
@@ -147,9 +146,9 @@
         <p class="register-subtitle-text">Únete a Bienestar en Casa en pocos pasos</p>
 
         <div class="register-card-box">
-            <div id="mensajes"></div>
+            <div id="mensajes" aria-live="polite"></div>
 
-            <form id="registerForm" method="post" action="/api/auth/registro/">
+            <form id="registerForm">
                 {% csrf_token %}
                 <div class="form-grid-2">
                     <div class="form-group-field">
@@ -161,18 +160,10 @@
                         <input type="text" id="apellidos" name="apellidos" placeholder="Ej: Pérez" required>
                     </div>
                 </div>
-
+               
                 <div class="form-group-field">
                     <label for="email">Correo electrónico</label>
                     <input type="email" id="email" name="email" placeholder="ejemplo@correo.com" required>
-                </div>
-
-                <div class="form-group-field">
-                    <label for="rol">Deseo registrarme como</label>
-                    <select id="rol" name="rol" required>
-                        <option value="CLIENTE">Cliente (Solicitar servicios)</option>
-                        <option value="PROVEEDOR">Proveedor (Ofrecer servicios)</option>
-                    </select>
                 </div>
 
                 <div class="form-grid-2">
@@ -184,6 +175,17 @@
                         <label for="password_confirmacion">Confirmar contraseña</label>
                         <input type="password" id="password_confirmacion" name="password_confirmacion" placeholder="••••••••" required>
                     </div>
+                </div>
+                <div class="form-group-field">
+                    <label for="rol">Deseo registrarme como</label>
+                    <select id="rol" name="rol" required>
+                        <option value="CLIENTE">Cliente (Solicitar servicios)</option>
+                        <option value="PROVEEDOR">Proveedor (Ofrecer servicios)</option>
+                    </select>
+                </div>
+                <div class="form-group-field">
+                    <label for="telefono">Telefono</label>
+                    <input type="text" id="telefono" name="telefono" placeholder="+57-000-000-0000" >
                 </div>
 
                 <button type="submit" class="btn-register-submit">Crear Cuenta</button>
@@ -202,83 +204,75 @@ document.addEventListener('DOMContentLoaded', function() {
     var form = document.getElementById('registerForm');
     if (!form) return;
 
-    var mensajes = document.getElementById('mensajes');
-    var boton = form.querySelector('button[type="submit"]');
+    var msgBox = document.getElementById('mensajes');
+    var btnSubmit = form.querySelector('button[type="submit"]');
 
-    function mostrarMensaje(texto, error) {
-        if (!mensajes) return;
-        mensajes.textContent = texto;
-        mensajes.style.color = error ? '#b91c1c' : '#15803d';
+    function mostrarError(texto) {
+        if (msgBox) {
+            msgBox.innerHTML = '<div style="color:#ef4444;font-weight:700;font-size:0.85rem;margin-bottom:0.5rem;">' + texto + '</div>';
+        }
     }
 
-    function obtenerError(res) {
-        var data = res && res.data ? res.data : {};
-        var detalle = data.detail || data.error || data.non_field_errors;
-        if (Array.isArray(detalle)) detalle = detalle[0];
-        if (typeof detalle === 'string') return detalle;
-
-        var campos = ['email', 'password', 'password_confirmacion', 'nombres', 'apellidos', 'rol'];
-        for (var i = 0; i < campos.length; i++) {
-            var valor = data[campos[i]];
-            if (Array.isArray(valor) && valor.length) return String(valor[0]);
-            if (typeof valor === 'string') return valor;
-        }
-        return 'No se pudo crear la cuenta. Revisa los datos e inténtalo de nuevo.';
+    function ponerCargando(cargando) {
+        if (!btnSubmit) return;
+        btnSubmit.disabled = cargando;
+        btnSubmit.textContent = cargando ? 'Creando cuenta...' : 'Crear Cuenta';
     }
 
     form.addEventListener('submit', function(e) {
         e.preventDefault();
+        if (msgBox) msgBox.innerHTML = '';
 
         var datos = {
             nombres: form.nombres.value.trim(),
             apellidos: form.apellidos.value.trim(),
             email: form.email.value.trim(),
-            rol: form.rol.value,
             password: form.password.value,
-            password_confirmacion: form.password_confirmacion.value
+            password_confirmacion: form.password_confirmacion.value,
+            rol: form.rol.value,
+            telefono: form.telefono.value.trim()
         };
 
         if (datos.password !== datos.password_confirmacion) {
-            mostrarMensaje('Las contraseñas no coinciden.', true);
+            mostrarError('Las contraseñas no coinciden.');
             return;
         }
 
-        if (!window.BEC || !window.BEC.api || !window.BEC.cfg.api.registro) {
-            mostrarMensaje('La ruta de registro no está disponible.', true);
-            return;
-        }
+        ponerCargando(true);
 
-        mostrarMensaje('', false);
-        if (boton) {
-            boton.disabled = true;
-            boton.textContent = 'Creando cuenta...';
-        }
+        window.BEC.api(window.BEC.cfg.api.registro, { method: 'POST', body: datos })
+            .then(function(res) {
+                ponerCargando(false);
 
-        window.BEC.api(window.BEC.cfg.api.registro, { method: 'POST', body: datos }).then(function(res) {
-            if (boton) {
-                boton.disabled = false;
-                boton.textContent = 'Crear Cuenta';
-            }
+                if (res && res.ok) {
+                    // Guardamos el perfil para que la barra de navegación
+                    // (base.html) muestre el menú correcto tras redirigir.
+                    if (res.data) {
+                        try { localStorage.setItem('bec_perfil', JSON.stringify(res.data)); } catch (e) {}
+                    }
 
-            if (!res || !res.ok) {
-                mostrarMensaje(obtenerError(res), true);
-                return;
-            }
-
-            form.reset();
-            mostrarMensaje('Tu cuenta se creó correctamente. Ahora puedes iniciar sesión.', false);
-            window.setTimeout(function() {
-                window.location.href = "{% url 'pagina-login' %}?registro=ok";
-            }, 900);
-        }).catch(function() {
-            if (boton) {
-                boton.disabled = false;
-                boton.textContent = 'Crear Cuenta';
-            }
-            mostrarMensaje('No se pudo conectar con el servidor. Inténtalo de nuevo.', true);
-        });
+                    var rolGuardado = (res.data && res.data.rol) ? res.data.rol.toUpperCase() : '';
+                    if (rolGuardado === 'PROVEEDOR' || rolGuardado === 'PRO') {
+                        window.location.href = "{% url 'pagina-panel-proveedor' %}";
+                    } else {
+                        window.location.href = "{% url 'mi-perfil' %}";
+                    }
+                } else {
+                    var errMsj = 'Error al registrar: Revisa los datos.';
+                    if (res.data) {
+                        errMsj = res.data.email || res.data.detail || res.data.non_field_errors || errMsj;
+                        if (Array.isArray(errMsj)) errMsj = errMsj[0];
+                    }
+                    mostrarError(errMsj);
+                }
+            })
+            .catch(function() {
+                ponerCargando(false);
+                mostrarError('Error de conexión con el servidor.');
+            });
     });
-});</script>
+});
+</script>
 {% endblock %}
 
 {% block footer %}{% endblock %}
