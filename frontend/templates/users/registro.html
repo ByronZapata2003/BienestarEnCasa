@@ -114,7 +114,6 @@
     .btn-register-submit:hover {
         background-color: #0052E0;
     }
-
     .register-footer {
         text-align: center;
         font-size: 0.9rem;
@@ -147,7 +146,7 @@
         <p class="register-subtitle-text">Únete a Bienestar en Casa en pocos pasos</p>
 
         <div class="register-card-box">
-            <div id="mensajes"></div>
+            <div id="mensajes" aria-live="polite"></div>
 
             <form id="registerForm">
                 {% csrf_token %}
@@ -161,18 +160,10 @@
                         <input type="text" id="apellidos" name="apellidos" placeholder="Ej: Pérez" required>
                     </div>
                 </div>
-
+               
                 <div class="form-group-field">
                     <label for="email">Correo electrónico</label>
                     <input type="email" id="email" name="email" placeholder="ejemplo@correo.com" required>
-                </div>
-
-                <div class="form-group-field">
-                    <label for="rol">Deseo registrarme como</label>
-                    <select id="rol" name="rol" required>
-                        <option value="CLIENTE">Cliente (Solicitar servicios)</option>
-                        <option value="PROVEEDOR">Proveedor (Ofrecer servicios)</option>
-                    </select>
                 </div>
 
                 <div class="form-grid-2">
@@ -184,6 +175,17 @@
                         <label for="password_confirmacion">Confirmar contraseña</label>
                         <input type="password" id="password_confirmacion" name="password_confirmacion" placeholder="••••••••" required>
                     </div>
+                </div>
+                <div class="form-group-field">
+                    <label for="rol">Deseo registrarme como</label>
+                    <select id="rol" name="rol" required>
+                        <option value="CLIENTE">Cliente (Solicitar servicios)</option>
+                        <option value="PROVEEDOR">Proveedor (Ofrecer servicios)</option>
+                    </select>
+                </div>
+                <div class="form-group-field">
+                    <label for="telefono">Telefono</label>
+                    <input type="text" id="telefono" name="telefono" placeholder="+57-000-000-0000" >
                 </div>
 
                 <button type="submit" class="btn-register-submit">Crear Cuenta</button>
@@ -202,45 +204,72 @@ document.addEventListener('DOMContentLoaded', function() {
     var form = document.getElementById('registerForm');
     if (!form) return;
 
+    var msgBox = document.getElementById('mensajes');
+    var btnSubmit = form.querySelector('button[type="submit"]');
+
+    function mostrarError(texto) {
+        if (msgBox) {
+            msgBox.innerHTML = '<div style="color:#ef4444;font-weight:700;font-size:0.85rem;margin-bottom:0.5rem;">' + texto + '</div>';
+        }
+    }
+
+    function ponerCargando(cargando) {
+        if (!btnSubmit) return;
+        btnSubmit.disabled = cargando;
+        btnSubmit.textContent = cargando ? 'Creando cuenta...' : 'Crear Cuenta';
+    }
+
     form.addEventListener('submit', function(e) {
         e.preventDefault();
-        
+        if (msgBox) msgBox.innerHTML = '';
+
         var datos = {
             nombres: form.nombres.value.trim(),
             apellidos: form.apellidos.value.trim(),
             email: form.email.value.trim(),
-            rol: form.rol.value,
             password: form.password.value,
-            password_confirmacion: form.password_confirmacion.value
+            password_confirmacion: form.password_confirmacion.value,
+            rol: form.rol.value,
+            telefono: form.telefono.value.trim()
         };
 
         if (datos.password !== datos.password_confirmacion) {
-            if (window.BEC && window.BEC.mensaje) {
-                window.BEC.mensaje('Las contraseñas no coinciden.', 'error');
-            } else {
-                alert('Las contraseñas no coinciden.');
-            }
+            mostrarError('Las contraseñas no coinciden.');
             return;
         }
 
-        if (window.BEC && window.BEC.ocupado) window.BEC.ocupado(form, true);
+        ponerCargando(true);
 
-        if (window.BEC && window.BEC.api) {
-            window.BEC.api(window.BEC.cfg.api.registro, { method: 'POST', body: datos }).then(function(res) {
-                if (window.BEC && window.BEC.ocupado) window.BEC.ocupado(form, false);
+        window.BEC.api(window.BEC.cfg.api.registro, { method: 'POST', body: datos })
+            .then(function(res) {
+                ponerCargando(false);
+
                 if (res && res.ok) {
+                    // Guardamos el perfil para que la barra de navegación
+                    // (base.html) muestre el menú correcto tras redirigir.
                     if (res.data) {
                         try { localStorage.setItem('bec_perfil', JSON.stringify(res.data)); } catch (e) {}
                     }
-                    var destino = (res.data && res.data.rol) ? window.BEC.inicioPorRol(res.data.rol) : (window.BEC.cfg.pages.perfil || '/mi-perfil/');
-                    window.location.href = destino;
+
+                    var rolGuardado = (res.data && res.data.rol) ? res.data.rol.toUpperCase() : '';
+                    if (rolGuardado === 'PROVEEDOR' || rolGuardado === 'PRO') {
+                        window.location.href = "{% url 'pagina-panel-proveedor' %}";
+                    } else {
+                        window.location.href = "{% url 'mi-perfil' %}";
+                    }
                 } else {
-                    if (window.BEC && window.BEC.mensajeError) window.BEC.mensajeError(res);
+                    var errMsj = 'Error al registrar: Revisa los datos.';
+                    if (res.data) {
+                        errMsj = res.data.email || res.data.detail || res.data.non_field_errors || errMsj;
+                        if (Array.isArray(errMsj)) errMsj = errMsj[0];
+                    }
+                    mostrarError(errMsj);
                 }
-            }).catch(function() {
-                if (window.BEC && window.BEC.ocupado) window.BEC.ocupado(form, false);
+            })
+            .catch(function() {
+                ponerCargando(false);
+                mostrarError('Error de conexión con el servidor.');
             });
-        }
     });
 });
 </script>

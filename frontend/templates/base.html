@@ -99,7 +99,7 @@
                     </form>
 
                     <p class="login-footer-register">
-                        ¿No tienes cuenta? <a href="#" id="linkIrARegistro">Regístrate aquí</a>
+                        ¿No tienes cuenta? <a href="users/registro.html" id="linkIrARegistro">Regístrate aquí</a>
                     </p>
                 </div>
             </div>
@@ -125,20 +125,12 @@
                                 <input type="text" id="regApellidos" name="apellidos" placeholder="Ej: Pérez" required>
                             </div>
                         </div>
-
+                        
                         <div class="form-group-field">
                             <label for="regEmail">Correo electrónico</label>
                             <input type="email" id="regEmail" name="email" placeholder="ejemplo@correo.com" required>
                         </div>
-
-                        <div class="form-group-field">
-                            <label for="regRol">Deseo registrarme como</label>
-                            <select id="regRol" name="rol" class="modal-select-field">
-                                <option value="CLIENTE">Cliente (Solicitar servicios)</option>
-                                <option value="PROVEEDOR">Proveedor (Ofrecer servicios)</option>
-                            </select>
-                        </div>
-
+                        
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                             <div class="form-group-field">
                                 <label for="regPassword">Contraseña</label>
@@ -150,11 +142,24 @@
                             </div>
                         </div>
 
+                        <div class="form-group-field">
+                            <label for="regRol">Deseo registrarme como</label>
+                            <select id="regRol" name="rol" class="modal-select-field">
+                                <option value="CLIENTE">Cliente (Solicitar servicios)</option>
+                                <option value="PROVEEDOR">Proveedor (Ofrecer servicios)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group-field">
+                            <label for="regTelefono">Telefono</label>
+                            <input type="text" id="regTelefono" name="telefono" placeholder="+57-000-000-0000" >
+                        </div>
+
                         <button type="submit" class="btn-login-submit">Crear Cuenta</button>
                     </form>
 
                     <p class="login-footer-register">
-                        ¿Ya tienes una cuenta? <a href="#" id="linkIrALogin">Inicia sesión</a>
+                        ¿Ya tienes una cuenta? <a href="users/iniciar-sesion.html" id="linkIrALogin">Inicia sesión</a>
                     </p>
                 </div>
             </div>
@@ -172,6 +177,7 @@
         api: {
             login: '/api/auth/iniciar-sesion/',
             servicios: '/api/catalogo/servicios/',
+            registro : '/api/auth/registro/',
             solicitudes: '/api/solicitudes/',
             direcciones: '/api/usuarios/direcciones/',
             direccion: '/api/usuarios/direcciones/{id}/'
@@ -222,6 +228,9 @@
         if (!options.headers['Content-Type'] && !(options.body instanceof FormData)) {
             options.headers['Content-Type'] = 'application/json';
         }
+
+        options.headers['Accept'] = 'application/json';
+        
 
         try {
             var perfil = JSON.parse(localStorage.getItem('bec_perfil') || '{}');
@@ -293,6 +302,87 @@
         });
 
         var btnSubmit = document.getElementById('btnSubmitLogin');
+
+        var formRegistroModal = document.getElementById('registroFormModal');
+        
+        if (formRegistroModal) {
+            formRegistroModal.addEventListener('submit', function(e) {
+                e.preventDefault(); // Detiene la recarga de la página
+                
+                var msgBoxReg = document.getElementById('mensajesRegistroModal');
+                var btnSubmitReg = formRegistroModal.querySelector('button[type="submit"]');
+                
+                // Capturamos los datos
+                var datos = {
+                    nombres: formRegistroModal.nombres.value.trim(),
+                    apellidos: formRegistroModal.apellidos.value.trim(),
+                    email: formRegistroModal.email.value.trim(),
+                    password: formRegistroModal.password.value,
+                    password_confirmacion: formRegistroModal.password_confirmacion.value,
+                    rol: formRegistroModal.rol.value,
+                    telefono: formRegistroModal.telefono.value.trim()
+                };
+
+                // Validar contraseñas
+                if (datos.password !== datos.password_confirmacion) {
+                    if (msgBoxReg) msgBoxReg.innerHTML = '<div style="color: #ef4444; font-weight: 700; font-size: 0.85rem; margin-bottom: 0.5rem;">Las contraseñas no coinciden.</div>';
+                    return;
+                }
+
+                // Mostrar estado de carga
+                if (btnSubmitReg) {
+                    btnSubmitReg.disabled = true;
+                    btnSubmitReg.textContent = 'Creando cuenta...';
+                }
+
+                // Enviar al backend
+                window.BEC.api(window.BEC.cfg.api.registro, { method: 'POST', body: datos })
+                .then(function(res) {
+                    if (btnSubmitReg) {
+                        btnSubmitReg.disabled = false;
+                        btnSubmitReg.textContent = 'Crear Cuenta';
+                    }
+
+                    if (res && res.ok) {
+                        // Guardar datos en local y redirigir
+                        if (res.data) {
+                            try { localStorage.setItem('bec_perfil', JSON.stringify(res.data)); } catch (e) {}
+                        }
+
+                        if (msgBoxReg) {
+                            msgBoxReg.innerHTML = '<div style="color:#16a34a;font-weight:700;font-size:0.85rem;margin-bottom:0.5rem;">¡Cuenta creada exitosamente!</div>';
+                        }
+
+                        // Definir la redirección según el rol
+                        var rolGuardado = (res.data && res.data.rol) ? res.data.rol.toUpperCase() : '';
+                        var destino = (rolGuardado === 'PROVEEDOR' || rolGuardado === 'PRO')
+                            ? "{% url 'pagina-panel-proveedor' %}"
+                            : "{% url 'mi-perfil' %}";
+
+                        //  Esperar 1.5 segundos antes de redirigir para que el mensaje sea visible
+                        setTimeout(function() {
+                            window.location.href = destino;
+                        }, 1500);
+
+                    } else {
+                        // Manejar errores de validación de Django
+                        var errMsj = 'Error al registrar: Revisa los datos.';
+                        if (res.data) {
+                            errMsj = res.data.email || res.data.detail || res.data.non_field_errors || errMsj;
+                            if (Array.isArray(errMsj)) errMsj = errMsj[0];
+                        }
+                        if (msgBoxReg) msgBoxReg.innerHTML = '<div style="color: #ef4444; font-weight: 700; font-size: 0.85rem; margin-bottom: 0.5rem;">' + errMsj + '</div>';
+                    }
+                }).catch(function() {
+                    if (btnSubmitReg) {
+                        btnSubmitReg.disabled = false;
+                        btnSubmitReg.textContent = 'Crear Cuenta';
+                    }
+                    if (msgBoxReg) msgBoxReg.innerHTML = '<div style="color: #ef4444; font-weight: 700; font-size: 0.85rem; margin-bottom: 0.5rem;">Error de conexión con el servidor.</div>';
+                });
+            });
+        }
+
         if (btnSubmit) {
             btnSubmit.addEventListener('click', function() {
                 var emailInput = document.getElementById('emailModal');
