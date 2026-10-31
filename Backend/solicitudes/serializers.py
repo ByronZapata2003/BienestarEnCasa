@@ -1,4 +1,3 @@
-import datetime
 from rest_framework import serializers
 from .models import SolicitudReserva
 from catalogo.models import Servicio  # Ajusta la importación según la ubicación de tu modelo Servicio
@@ -57,39 +56,19 @@ class SolicitudReservaSerializer(serializers.ModelSerializer):
         return f"{u.first_name} {u.last_name}".strip() or u.email
 
     def validate(self, attrs):
-        fecha = attrs.get('fecha_solicitada')
-        hora = attrs.get('hora_solicitada')
-
-        # 1. Validación de Días (Lunes a Viernes)
-        if fecha:
-            if fecha.weekday() in [5, 6]:
-                raise serializers.ValidationError({
-                    "fecha_solicitada": "El servicio solo atiende de Lunes a Viernes."
-                })
-            
-            if fecha < datetime.date.today():
-                raise serializers.ValidationError({
-                    "fecha_solicitada": "No se pueden agendar solicitudes para fechas pasadas."
-                })
-
-        # 2. Validación de Horario (8:00 AM a 5:00 PM)
-        if hora:
-            hora_inicio = datetime.time(8, 0, 0)
-            hora_fin = datetime.time(17, 0, 0)
-
-            if not (hora_inicio <= hora <= hora_fin):
-                raise serializers.ValidationError({
-                    "hora_solicitada": "El horario de atención es únicamente de 8:00 AM a 5:00 PM."
-                })
-
-        return super().validate(attrs)
-
-    def validate(self, attrs):
         campos_horario = {'fecha_solicitada', 'hora_solicitada', 'servicio'}
         if self.instance is None or campos_horario.intersection(attrs):
             fecha = attrs.get('fecha_solicitada', getattr(self.instance, 'fecha_solicitada', None))
             hora = attrs.get('hora_solicitada', getattr(self.instance, 'hora_solicitada', None))
             servicio = attrs.get('servicio', getattr(self.instance, 'servicio', None))
+            if (
+                self.instance is None
+                and servicio
+                and str(servicio.estado).upper() != Servicio.Estado.ACTIVO
+            ):
+                raise serializers.ValidationError({
+                    'servicio': 'Este servicio está inactivo y no acepta nuevas solicitudes.'
+                })
             proveedor = (
                 servicio.proveedor if servicio
                 else getattr(self.instance, 'proveedor', None)

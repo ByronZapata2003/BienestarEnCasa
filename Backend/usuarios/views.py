@@ -7,14 +7,16 @@ from rest_framework_simplejwt.settings import api_settings as jwt_settings
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from django.conf import settings
-from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError, NotAuthenticated, AuthenticationFailed
 from .models import Direccion, PerfilProveedor, PerfilUsuario, ZonaAtencion, SesionActiva
 from .authentication import CookieJWTAuthentication  # <--- HABILITA LECTURA DE COOKIE JWT
 
+from rest_framework.permissions import IsAuthenticated
 from catalogo.models import Servicio
+from django.db.models import Q
 from django.db.models import Prefetch
 from django.http import Http404
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from .serializers import (
     ProveedorPublicoSerializer, ZonaAtencionSerializer, PerfilProveedorSerializer,
     ActualizarPerfilSerializer, DireccionSerializer, InicioSesionSerializer,
@@ -159,7 +161,7 @@ class DireccionListCreateView(generics.ListCreateAPIView):
         )
 
 
-class DireccionDetalleView(generics.RetrieveUpdateAPIView):
+class DireccionDetalleView(generics.RetrieveUpdateDestroyAPIView):  # <-- aquí el cambio
     serializer_class = DireccionSerializer
     authentication_classes = [CookieJWTAuthentication]
     permission_classes = [permissions.IsAuthenticated]
@@ -192,6 +194,16 @@ class DireccionDetalleView(generics.RetrieveUpdateAPIView):
                 )
 
         serializer.save()
+
+    def perform_destroy(self, instance):
+        if instance.es_principal:
+            siguiente = Direccion.objects.filter(
+                usuario=self.request.user
+            ).exclude(pk=instance.pk).order_by('-creado_en').first()
+            if siguiente:
+                siguiente.es_principal = True
+                siguiente.save(update_fields=['es_principal'])
+        instance.delete()
 
 
 class MiPerfilProveedorView(APIView):
@@ -311,15 +323,52 @@ class ZonaAtencionDetalleView(generics.RetrieveDestroyAPIView):
 class ProveedorDetalleView(generics.RetrieveAPIView):
     """Perfil público del proveedor con su catálogo activo (HU-09, HU-10)."""
     serializer_class = ProveedorPublicoSerializer
+    permission_classes = [permissions.AllowAny]
     queryset = PerfilProveedor.objects.select_related('perfil_usuario__usuario').prefetch_related(
         'zonas_atencion',
         Prefetch(
             'servicios',
-            queryset=Servicio.objects.filter(estado=Servicio.Estado.ACTIVO)
+            queryset=Servicio.objects.filter(estado__iexact=Servicio.Estado.ACTIVO)
             .select_related('categoria', 'proveedor__perfil_usuario__usuario')
             .prefetch_related('multimedia', 'elementos'),
         ),
     )
+
+
+class ProveedorListaView(generics.ListAPIView):
+    """
+    Lista y busca proveedores por nombre, apellido o descripción profesional
+    para alimentar la sección de búsqueda en el catálogo del cliente.
+    """
+    serializer_class = ProveedorPublicoSerializer
+    queryset = PerfilProveedor.objects.select_related('perfil_usuario__usuario').prefetch_related(
+        'zonas_atencion',
+        Prefetch(
+            'servicios',
+            queryset=Servicio.objects.filter(estado__iexact=Servicio.Estado.ACTIVO)
+            .select_related('categoria', 'proveedor__perfil_usuario__usuario')
+            .prefetch_related('multimedia', 'elementos'),
+        ),
+    )
+    permission_classes = [permissions.AllowAny] 
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        search_query = self.request.GET.get('search', '').strip()
+        
+        if search_query:
+            # Permite buscar por nombre y apellido por separado (ej: "Manuel Pérez")
+            terminos = search_query.split()
+            q_filters = Q()
+            for termino in terminos:
+                q_filters &= (
+                    Q(perfil_usuario__usuario__first_name__icontains=termino) |
+                    Q(perfil_usuario__usuario__last_name__icontains=termino) |
+                    Q(descripcion_profesional__icontains=termino)
+                )
+            queryset = queryset.filter(q_filters)
+            
+        return queryset
 
     def retrieve(self, request, *args, **kwargs):
         try:

@@ -51,7 +51,7 @@
 (function () {
     var h = BEC.h;
     var ID = parseInt("{{ pk }}", 10) || null;
-    var TIPOS = { INSUMO: 'Insumo', EQUIPO: 'Equipo', IMAGEN: 'Imagen', VIDEO: 'Video' };
+    var TIPOS = { INSUMO: 'Insumo', PRODUCTO: 'Producto', EQUIPO: 'Equipo', FOTO: 'Fotografía', IMAGEN: 'Imagen', VIDEO: 'Video' };
 
     function esUrl(t) { return /^https?:\/\//i.test(t); }
 
@@ -76,18 +76,34 @@
             document.getElementById('bloque-multimedia').hidden = false;
             var ul = document.getElementById('d-multimedia');
             s.multimedia.forEach(function (m) {
-                var ref = esUrl(m.url_o_archivo)
-                    ? h('a', { href: m.url_o_archivo, target: '_blank', rel: 'noopener noreferrer', text: m.url_o_archivo })
-                    : m.url_o_archivo;
-                ul.appendChild(h('li', { class: 'media-item' }, h('strong', { text: (TIPOS[m.tipo] || m.tipo) + ': ' }), ref));
+                var url = m.archivo || m.url_o_archivo || '';
+                var descripcion = m.descripcion || (TIPOS[m.tipo] || m.tipo);
+                var vistaPrevia;
+                if (String(m.tipo).toUpperCase() === 'FOTO' || String(m.tipo).toUpperCase() === 'IMAGEN') {
+                    vistaPrevia = h('img', { src: url, alt: descripcion, loading: 'lazy', style: 'display:block;max-width:100%;max-height:360px;border-radius:12px;margin:.5rem 0;' });
+                } else if (String(m.tipo).toUpperCase() === 'VIDEO') {
+                    vistaPrevia = h('video', { src: url, controls: 'controls', preload: 'metadata', style: 'display:block;max-width:100%;max-height:360px;border-radius:12px;margin:.5rem 0;' });
+                } else {
+                    vistaPrevia = esUrl(url)
+                        ? h('a', { href: url, target: '_blank', rel: 'noopener noreferrer', text: descripcion })
+                        : document.createTextNode(url);
+                }
+                var li = h('li', { class: 'media-item' }, h('strong', { text: (TIPOS[m.tipo] || m.tipo) + ': ' }));
+                if (vistaPrevia) li.appendChild(vistaPrevia);
+                if (m.descripcion && (m.tipo === 'FOTO' || m.tipo === 'VIDEO')) {
+                    li.appendChild(h('span', { text: m.descripcion }));
+                }
+                ul.appendChild(li);
             });
         }
 
-        if (s.insumos_equipos && s.insumos_equipos.length) {
+        var elementos = s.elementos || s.insumos_equipos || [];
+        if (elementos.length) {
             document.getElementById('bloque-insumos').hidden = false;
             var ul2 = document.getElementById('d-insumos');
-            s.insumos_equipos.forEach(function (i) {
-                ul2.appendChild(h('li', { text: i.nombre + (i.descripcion ? ' - ' + i.descripcion : '') + ' (' + (TIPOS[i.tipo] || i.tipo) + ')' }));
+            elementos.forEach(function (i) {
+                var detalleElemento = i.especificaciones || i.descripcion || '';
+                ul2.appendChild(h('li', { text: i.nombre + (detalleElemento ? ' - ' + detalleElemento : '') + ' (' + (TIPOS[i.tipo] || i.tipo) + ')' }));
             });
         }
 

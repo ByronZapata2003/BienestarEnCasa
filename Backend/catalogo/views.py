@@ -4,6 +4,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, generics, viewsets, permissions, status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
+from rest_framework.decorators import action
 from .models import Categoria, Servicio, ContenidoMultimediaServicio, ElementoServicio
 from .serializers import (
     CategoriaSerializer,
@@ -19,7 +20,7 @@ def filtrar_visibles(queryset, user, prefijo=''):
     #cuando consulta un cliente o el proveedr que no es dueño, le muestra solo activo si no los otros
     """Servicios activos para todos; los inactivos solo para su proveedor dueño."""
     return queryset.filter(
-        Q(**{f'{prefijo}estado': Servicio.Estado.ACTIVO})
+        Q(**{f'{prefijo}estado__iexact': Servicio.Estado.ACTIVO})
         | Q(**{f'{prefijo}proveedor__perfil_usuario__usuario': user})
     )
 
@@ -92,6 +93,22 @@ class ServicioViewSet(viewsets.ModelViewSet):
             )
         return Response(self.get_serializer(instance).data)
 
+    @action(detail=False, methods=['get'], url_path='mios',
+            permission_classes=[permissions.IsAuthenticated])
+    def mios(self, request):
+        """Devuelve únicamente los servicios del proveedor autenticado,
+        incluyendo los inactivos, sin importar los de otros proveedores."""
+        
+        # Nota importante: Si la función `filtrar_visibles` en `get_queryset` 
+        # oculta los servicios inactivos, cambia `self.get_queryset()` por `super().get_queryset()`
+        # para asegurar que el dueño pueda ver incluso sus servicios inactivos.
+        qs = self.get_queryset().filter(
+            proveedor__perfil_usuario__usuario=request.user
+        )
+        
+        page = self.paginate_queryset(qs)
+        serializer = self.get_serializer(page if page is not None else qs, many=True)
+        return self.get_paginated_response(serializer.data) if page is not None else Response(serializer.data)
 
 class DetalleServicioViewSet(viewsets.ModelViewSet): #para traer los datos del servicio y solo el dueño puede escribir
     """Base para multimedia y elementos: solo el dueño del servicio escribe (HU-08)."""

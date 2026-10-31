@@ -58,21 +58,23 @@ class IsProveedorOwnerOrReadOnly(permissions.BasePermission):
         if request.user.is_staff or request.user.is_superuser:
             return True
 
+        # Los servicios guardan el proveedor directamente; los archivos y
+        # elementos lo heredan mediante su relación con el servicio.
+        servicio = getattr(obj, 'servicio', obj)
+        proveedor = getattr(servicio, 'proveedor', None)
+
         # 1. Comprobar por perfil profesional
         perfil = getattr(request.user, 'perfil', None)
         if perfil and hasattr(perfil, 'perfil_profesional'):
-            if obj.proveedor_id == perfil.perfil_profesional.id:
+            if getattr(servicio, 'proveedor_id', None) == perfil.perfil_profesional.id:
                 return True
 
         # 2. Comprobar por relación directa con el usuario
-        if hasattr(obj, 'proveedor') and hasattr(obj.proveedor, 'perfil_usuario'):
-            if obj.proveedor.perfil_usuario.usuario == request.user:
+        if proveedor and hasattr(proveedor, 'perfil_usuario'):
+            if proveedor.perfil_usuario.usuario == request.user:
                 return True
 
-        # 3. Si el usuario está autenticado como Proveedor en la sesión activa, permitir gestión
-        if perfil and str(getattr(perfil, 'rol', '')).upper() in ['PROVEEDOR', 'PRO']:
-            return True
-
+        
         return False
 
 
@@ -93,8 +95,5 @@ def es_dueno_servicio(user, servicio):
     if hasattr(servicio, 'proveedor') and hasattr(servicio.proveedor, 'perfil_usuario'):
         if servicio.proveedor.perfil_usuario.usuario == user:
             return True
-
-    if perfil and str(getattr(perfil, 'rol', '')).upper() in ['PROVEEDOR', 'PRO']:
-        return True
 
     return False

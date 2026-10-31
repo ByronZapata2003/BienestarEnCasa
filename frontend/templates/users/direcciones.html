@@ -42,6 +42,11 @@
           border-color: #2563eb;
           box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
         }
+        .fieldset-oculto {
+          border: none;
+          margin: 0;
+          padding: 0;
+        }
       </style>
 
       <!-- Columna Izquierda: Formulario -->
@@ -70,18 +75,43 @@
           </div>
 
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
-            <div>
+            <div> 
               <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #334155; margin-bottom: 0.4rem;">
                 Ciudad <span style="color: #ef4444;">*</span>
-              </label>
-              <input type="text" id="inputCiudad" name="ciudad" class="form-input-field" placeholder="Ej: Cali" required>
+              </label><fieldset class="fieldset-oculto" disabled>
+              <input type="text" id="inputCiudad" name="ciudad" value="Cali" class="form-input-field" placeholder="Ej: Cali" required></fieldset>
             </div>
 
             <div>
               <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #334155; margin-bottom: 0.4rem;">
                 Barrio / Sector <span style="color: #ef4444;">*</span>
               </label>
-              <input type="text" id="inputBarrio" name="barrio_sector" class="form-input-field" placeholder="Ej: San Fernando" required>
+              <select type="text" id="inputBarrio" name="barrio_sector" class="form-input-field" placeholder="Ej: San Fernando" required>
+                <option value="">-- Selecciona un sector o barrio --</option>
+              <option value="san_fernando">San Fernando</option>
+              <option value="vipasa">Vipasa</option>
+              <option value="terron_colorado">Terron Colorado</option>
+              <option value="san_antonio">San Antonio</option>
+              <option value="manzanares">Manzanares</option>
+              <option value="rivera">Rivera</option>
+              <option value="los_guaduales">Los Guaduales</option>
+              <option value="alfonoso_lopez">Alfonso Lopez</option>
+              <option value="las_americas">Las Americas</option>
+              <option value="guayaquil">Guayaquil</option>
+              <option value="guabal">Guabal</option>
+              <option value="san_carlos">San Carlos</option>
+              <option value="nueva_floresta">Nueva Floresta</option>
+              <option value="lleras_restrepo">Lleras Restrepo</option>
+              <option value="alfonso_bonilla">Alfonso Bonilla</option>
+              <option value="el_vallado">El Vallado</option>
+              <option value="la_union">La Unidad</option>
+              <option value="el_limonar">El Limonar</option>
+              <option value="melendez">Meléndez</option>
+              <option value="el_cedro">El Cedro</option>
+              <option value="siloe">Siloe</option>
+              <option value="desepaz">Desepaz</option>
+              <option value="ciudad_jardin_pance">Ciudad Jardin y Pance</option>
+          </select>
             </div>
           </div>
 
@@ -128,6 +158,8 @@
 </div>
 
 <script>
+// Requiere que bec-core.js se cargue ANTES que este archivo
+// (define window.BEC.api, window.BEC.lista, window.BEC.cerrarSesion).
 document.addEventListener('DOMContentLoaded', function() {
   var contenedor = document.getElementById('contenedorDirecciones');
   var form = document.getElementById('formAgregarDireccion');
@@ -163,8 +195,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     contenedor.innerHTML = lista.map(function(dir) {
-      var barrio = dir.barrio_sector || dir.barrio || '';
-      var comp = dir.informacion_complementaria || dir.complemento || '';
+      var barrio = dir.barrio || '';
+      var comp = dir.complemento || '';
 
       return `
         <div style="background-color: #ffffff; border-radius: 1rem; border: 1px solid #e2e8f0; padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: flex-start; gap: 0.85rem; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
@@ -199,14 +231,35 @@ document.addEventListener('DOMContentLoaded', function() {
     }).join('');
   }
 
+  function mostrarError(texto) {
+    if (!msgsBox) return;
+    msgsBox.innerHTML = '<div style="background-color:#FEF2F2; color:#DC2626; padding:0.75rem 1rem; border-radius:0.75rem; font-weight:600; font-size:0.85rem; margin-bottom:1rem; border:1px solid #FECACA;">' + texto + '</div>';
+  }
+
+  function mostrarExito(texto) {
+    if (!msgsBox) return;
+    msgsBox.innerHTML = '<div style="background-color:#F0FDF4; color:#166534; padding:0.75rem 1rem; border-radius:0.75rem; font-weight:600; font-size:0.85rem; margin-bottom:1rem; border:1px solid #BBF7D0;">' + texto + '</div>';
+  }
+
   function cargarDirecciones() {
-    fetch('/api/usuarios/direcciones/')
-      .then(function(res) { return res.json(); })
-      .then(function(data) {
-        var lista = Array.isArray(data) ? data : (data.results || []);
-        renderizarDirecciones(lista);
+    window.BEC.api('/api/usuarios/direcciones/', { method: 'GET' })
+      .then(function(res) {
+        if (!res.ok) {
+          // 403 aquí = el usuario autenticado no es CLIENTE (regla de
+          // negocio de DireccionListCreateView), no una lista vacía.
+          mostrarError(
+            res.status === 403
+              ? 'Solo las cuentas de tipo Cliente pueden consultar direcciones.'
+              : 'No se pudieron cargar las direcciones.'
+          );
+          renderizarDirecciones([]);
+          return;
+        }
+        renderizarDirecciones(window.BEC.lista(res.data));
       })
       .catch(function() {
+        // Una sesión vencida ya fue redirigida por el interceptor de BEC.api;
+        // esto solo cubre errores de red genuinos.
         renderizarDirecciones([]);
       });
   }
@@ -214,28 +267,21 @@ document.addEventListener('DOMContentLoaded', function() {
   cargarDirecciones();
 
   window.eliminarDireccion = function(id) {
-    if (!id || !confirm("¿Deseas eliminar esta dirección?")) return;
-    
-    var csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
-    var csrfToken = csrfInput ? csrfInput.value : '';
+    if (!id || !confirm('¿Deseas eliminar esta dirección?')) return;
 
-    fetch('/api/usuarios/direcciones/' + id + '/', {
-      method: 'DELETE',
-      headers: {
-        'X-CSRFToken': csrfToken
-      },
-      credentials: 'same-origin'
-    })
-    .then(function(res) {
-      if (res.ok || res.status === 204) {
-        cargarDirecciones();
-      } else {
-        alert("No se pudo eliminar la dirección.");
-      }
-    })
-    .catch(function() {
-      alert("Error de conexión al eliminar.");
-    });
+    window.BEC.api('/api/usuarios/direcciones/' + id + '/', { method: 'DELETE' })
+      .then(function(res) {
+        if (res.ok || res.status === 204) {
+          cargarDirecciones();
+        } else if (res.status === 405) {
+          alert('Esta operación aún no está habilitada en el servidor.');
+        } else {
+          alert('No se pudo eliminar la dirección.');
+        }
+      })
+      .catch(function() {
+        alert('Error de conexión al eliminar.');
+      });
   };
 
   if (form) {
@@ -243,63 +289,52 @@ document.addEventListener('DOMContentLoaded', function() {
       e.preventDefault();
       if (msgsBox) msgsBox.innerHTML = '';
 
-      var csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
-      var csrfToken = csrfInput ? csrfInput.value : '';
-
       var btnSubmit = document.getElementById('btnGuardarDireccion');
       if (btnSubmit) {
         btnSubmit.disabled = true;
         btnSubmit.textContent = 'Guardando...';
       }
 
+      // Nombres alineados con DireccionSerializer: 'barrio' y 'complemento'
+      // (antes se mandaban como 'barrio_sector' e 'informacion_complementaria',
+      // que el serializer ignora silenciosamente por no existir).
       var payload = {
         direccion: document.getElementById('inputDireccion').value.trim(),
         ciudad: document.getElementById('inputCiudad').value.trim(),
-        barrio_sector: document.getElementById('inputBarrio').value.trim(),
-        informacion_complementaria: document.getElementById('inputComplemento').value.trim(),
+        barrio: document.getElementById('inputBarrio').value.trim(),
+        complemento: document.getElementById('inputComplemento').value.trim(),
         es_principal: document.getElementById('checkPrincipal').checked
       };
 
-      fetch('/api/usuarios/direcciones/', {
+      window.BEC.api('/api/usuarios/direcciones/', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': csrfToken
-        },
-        credentials: 'same-origin',
-        body: JSON.stringify(payload)
+        body: payload
       })
-      .then(function(response) {
+      .then(function(res) {
         if (btnSubmit) {
           btnSubmit.disabled = false;
           btnSubmit.textContent = 'Guardar dirección';
         }
 
-        if (response.ok || response.status === 201) {
+        if (res.ok || res.status === 201) {
           form.reset();
           cargarDirecciones();
-          if (msgsBox) {
-            msgsBox.innerHTML = '<div style="background-color:#F0FDF4; color:#166534; padding:0.75rem 1rem; border-radius:0.75rem; font-weight:600; font-size:0.85rem; margin-bottom:1rem; border:1px solid #BBF7D0;">Dirección guardada con éxito.</div>';
-          }
+          mostrarExito('Dirección guardada con éxito.');
+        } else if (res.status === 403) {
+          mostrarError('Solo las cuentas de tipo Cliente pueden registrar direcciones.');
         } else {
-          return response.json().then(function(data) {
-            if (msgsBox) {
-              var errorMsg = "No se pudo guardar la dirección. ";
-              if (data.detail) errorMsg += data.detail;
-              else if (typeof data === 'object') errorMsg += JSON.stringify(data);
-              msgsBox.innerHTML = '<div style="background-color:#FEF2F2; color:#DC2626; padding:0.75rem 1rem; border-radius:0.75rem; font-weight:600; font-size:0.85rem; margin-bottom:1rem; border:1px solid #FECACA;">' + errorMsg + '</div>';
-            }
-          });
+          var errorMsg = 'No se pudo guardar la dirección. ';
+          if (res.data && res.data.detail) errorMsg += res.data.detail;
+          else if (res.data && typeof res.data === 'object') errorMsg += JSON.stringify(res.data);
+          mostrarError(errorMsg);
         }
       })
-      .catch(function(err) {
+      .catch(function() {
         if (btnSubmit) {
           btnSubmit.disabled = false;
           btnSubmit.textContent = 'Guardar dirección';
         }
-        if (msgsBox) {
-          msgsBox.innerHTML = '<div style="background-color:#FEF2F2; color:#DC2626; padding:0.75rem 1rem; border-radius:0.75rem; font-weight:600; font-size:0.85rem; margin-bottom:1rem; border:1px solid #FECACA;">Error de conexión con el servidor.</div>';
-        }
+        mostrarError('Error de conexión con el servidor.');
       });
     });
   }

@@ -12,9 +12,15 @@ def validar_horario_reserva(proveedor, fecha, hora, duracion_minutos):
     if not fecha or not hora:
         return
 
-    if fecha < timezone.localdate():
+    hoy = timezone.localdate()
+    if fecha < hoy:
         raise ValidationError({
             'fecha_solicitada': 'No se pueden agendar solicitudes para fechas pasadas.'
+        })
+
+    if fecha == hoy and hora <= timezone.localtime().time():
+        raise ValidationError({
+            'hora_solicitada': 'No se pueden agendar horas que ya pasaron o que ya comenzaron.'
         })
 
     if proveedor and PeriodoNoDisponible.objects.filter(
