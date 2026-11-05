@@ -7,7 +7,7 @@ ninguna ruta de la API.
 """
 from django.urls import path
 from django.views.generic import TemplateView
-from usuarios.disponibilidad_views import GestionarDisponibilidadPageView
+from usuarios.views import GestionarDisponibilidadPageView
 
 
 def pagina(plantilla):

@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import SolicitudReserva
 from catalogo.models import Servicio  # Ajusta la importación según la ubicación de tu modelo Servicio
-from usuarios.disponibilidad import validar_horario_reserva
+from usuarios.validators import validar_horario_reserva
 
 class SolicitudReservaSerializer(serializers.ModelSerializer):
     nombre_proveedor = serializers.SerializerMethodField()

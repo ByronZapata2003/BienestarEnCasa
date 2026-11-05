@@ -5,9 +5,7 @@ from ..views import (
     MisZonasAtencionView, 
     ZonaAtencionDetalleView,  
     ProveedorDetalleView,
-    ProveedorListaView  # Importamos la vista de lista/búsqueda
-)
-from ..disponibilidad_views import (
+    ProveedorListaView,  # Importamos la vista de lista/búsqueda
     DisponibilidadProveedorDetailView,
     DisponibilidadProveedorListCreateView,
     DisponibilidadPublicaView,

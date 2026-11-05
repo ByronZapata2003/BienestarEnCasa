@@ -44,8 +44,8 @@ class ReservaMismoDiaTests(APITestCase):
     def test_rechaza_horas_pasadas_y_la_hora_actual_del_dia(self):
         hoy = date(2026, 10, 31)
         ahora = datetime(2026, 10, 31, 12, 0, tzinfo=ZoneInfo('America/Bogota'))
-        with patch('usuarios.disponibilidad.timezone.localdate', return_value=hoy), patch(
-            'usuarios.disponibilidad.timezone.localtime', return_value=ahora
+        with patch('usuarios.validators.timezone.localdate', return_value=hoy), patch(
+            'usuarios.validators.timezone.localtime', return_value=ahora
         ):
             for hora in ('11:00:00', '12:00:00'):
                 respuesta = self.client.post('/api/solicitudes/', {
