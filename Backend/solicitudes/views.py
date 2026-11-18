@@ -53,6 +53,16 @@ class ClienteSolicitudesViewSet(viewsets.ModelViewSet):
             proveedor=proveedor_obj
         )
 
+    def perform_update(self, serializer):
+        """
+        Permite procesar y guardar los cambios de estado (como Aceptar o Rechazar) 
+        enviados mediante PATCH desde el panel del proveedor para reflejarse en la agenda.
+        """
+        instance = serializer.save()
+        if instance.estado == 'ACEPTADA':
+            # La reserva queda persistida correctamente para la agenda
+            pass
+
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
         if not queryset.exists():

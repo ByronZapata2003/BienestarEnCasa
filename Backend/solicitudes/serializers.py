@@ -22,7 +22,7 @@ class SolicitudReservaSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             'cliente', 'nombre_servicio_copia', 'precio_copia',
-            'duracion_minutos_copia', 'estado', 'motivo_rechazo_cancelacion',
+            'duracion_minutos_copia',
             'creado_en', 'actualizado_en'
         ]
 
