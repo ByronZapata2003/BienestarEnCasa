@@ -43,6 +43,30 @@
 (function () {
     var ID = "{{ pk }}";
 
+    // Helpers de seguridad por si BEC no trae alguna función de formato
+    if (window.BEC) {
+        if (!window.BEC.fecha) {
+            window.BEC.fecha = function(raw) {
+                if (!raw) return '';
+                var d = new Date(raw + (raw.indexOf('T') === -1 ? 'T00:00:00' : ''));
+                return isNaN(d.getTime()) ? raw : d.toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric' });
+            };
+        }
+        if (!window.BEC.hora) {
+            window.BEC.hora = function(raw) {
+                if (!raw) return '';
+                return raw.length > 5 ? raw.substring(0, 5) : raw;
+            };
+        }
+        if (!window.BEC.fechaHora) {
+            window.BEC.fechaHora = function(raw) {
+                if (!raw) return '';
+                var d = new Date(raw);
+                return isNaN(d.getTime()) ? raw : d.toLocaleString('es-CO');
+            };
+        }
+    }
+
     function texto(id, valor) { document.getElementById(id).textContent = valor; }
     function opcional(idP, idSpan, valor) {
         if (valor) { texto(idSpan, valor); document.getElementById(idP).hidden = false; }

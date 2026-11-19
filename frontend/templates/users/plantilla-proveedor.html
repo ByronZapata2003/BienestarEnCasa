@@ -224,6 +224,33 @@ document.addEventListener('DOMContentLoaded', function() {
     return rawHora;
   }
 
+  // Función auxiliar para calcular la hora de finalización (E2)
+  function calcularHoraFin(horaInicioStr, duracionMinutos) {
+    if (!horaInicioStr) return '';
+    try {
+      let partes = horaInicioStr.split(':');
+      let h = parseInt(partes[0], 10);
+      let m = parseInt(partes[1] || '0', 10);
+      
+      if (horaInicioStr.toUpperCase().includes('PM') && h < 12) h += 12;
+      if (horaInicioStr.toUpperCase().includes('AM') && h === 12) h = 0;
+
+      let totalMinutos = (h * 60) + m + (duracionMinutos || 60);
+      let nuevoH = Math.floor(totalMinutos / 60) % 24;
+      let nuevoM = totalMinutos % 60;
+
+      let ampm = nuevoH >= 12 ? 'PM' : 'AM';
+      let h12 = nuevoH % 12;
+      if (h12 === 0) h12 = 12;
+      let hFormat = h12 < 10 ? '0' + h12 : h12;
+      let mFormat = nuevoM < 10 ? '0' + nuevoM : nuevoM;
+
+      return hFormat + ':' + mFormat + ' ' + ampm;
+    } catch(e) {
+      return '';
+    }
+  }
+
   function cargarCatalogoServicios() {
     window.BEC.api(window.BEC.cfg.api.servicios, { method: 'GET' })
       .then(function(res) {
@@ -269,7 +296,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const contenedorRespondidas = document.getElementById('contenedorRespondidas');
 
     const pendientes = lista.filter(s => (s.estado || '').toUpperCase() === 'PENDIENTE');
-    const respondidas = lista.filter(s => (s.estado || '').toUpperCase() !== 'PENDIENTE');
+    
+    // Respondidas ordenadas cronológicamente por fecha y hora de atención
+    const respondidas = lista
+      .filter(s => (s.estado || '').toUpperCase() !== 'PENDIENTE')
+      .sort((a, b) => {
+        const fechaA = `${a.fecha_solicitada || ''}T${a.hora_solicitada || '00:00:00'}`;
+        const fechaB = `${b.fecha_solicitada || ''}T${b.hora_solicitada || '00:00:00'}`;
+        return fechaA.localeCompare(fechaB);
+      });
 
     if (pendientes.length === 0) {
       contenedorPorResponder.innerHTML = `
@@ -348,7 +383,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const cliente = obtenerNombreCliente(sol);
         const servicio = obtenerNombreServicio(sol);
         const fecha = obtenerFecha(sol);
-        const hora = obtenerHora(sol);
+        const horaInicio = obtenerHora(sol);
+        const duracion = sol.duracion_minutos_copia || 60;
+        const horaFin = calcularHoraFin(sol.hora_solicitada || horaInicio, duracion);
+        
+        // E3: Dirección limpia sin la palabra (Principal)
+        let direccionCruda = sol.direccion_atencion || 'Dirección no especificada';
+        const direccion = direccionCruda.replace(/\(Principal\)/gi, '').trim();
+        const barrio = sol.barrio_sector ? ` (${sol.barrio_sector})` : '';
+
         const estado = (sol.estado || 'ACEPTADA').toUpperCase();
         const esAceptada = estado === 'ACEPTADA' || estado === 'ACEPTADO';
 
@@ -356,10 +399,15 @@ document.addEventListener('DOMContentLoaded', function() {
           <div style="background-color: #ffffff; border-radius: 1.25rem; border: 1px solid #e2e8f0; padding: 1.25rem 1.5rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
             <div>
               <h3 style="font-size: 1.1rem; font-weight: 800; color: #0f172a; margin: 0 0 0.2rem 0;">${cliente}</h3>
-              <p style="color: #64748b; font-size: 0.9rem; margin: 0 0 0.5rem 0;">${servicio}</p>
-              <div style="display: flex; gap: 1rem; color: #94a3b8; font-size: 0.85rem;">
-                <span>📅 ${fecha}</span>
-                <span>🕒 ${hora}</span>
+              <p style="color: #64748b; font-size: 0.9rem; margin: 0 0 0.4rem 0;">${servicio}</p>
+              
+              <!-- E2 y E3: Horarios completos y Dirección -->
+              <div style="display: flex; gap: 1rem; color: #64748b; font-size: 0.85rem; flex-wrap: wrap; margin-bottom: 0.3rem;">
+                <span>📅 <strong>${fecha}</strong></span>
+                <span>🕒 ${horaInicio} - ${horaFin}</span>
+              </div>
+              <div style="color: #475569; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.3rem;">
+                📍 <strong>Dirección:</strong> ${direccion}${barrio}
               </div>
             </div>
 
@@ -385,7 +433,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const contenedor = document.getElementById('contenedorClientes');
     if (!contenedor) return;
 
-    const aceptadas = todasLasSolicitudes.filter(s => ['ACEPTADA', 'ACEPTADO', 'REALIZADO', 'COMPLETADO'].includes((s.estado || '').toUpperCase()));
+    // Clientes/Citas aceptadas ordenadas cronológicamente
+    const aceptadas = todasLasSolicitudes
+      .filter(s => ['ACEPTADA', 'ACEPTADO', 'REALIZADO', 'COMPLETADO'].includes((s.estado || '').toUpperCase()))
+      .sort((a, b) => {
+        const fechaA = `${a.fecha_solicitada || ''}T${a.hora_solicitada || '00:00:00'}`;
+        const fechaB = `${b.fecha_solicitada || ''}T${b.hora_solicitada || '00:00:00'}`;
+        return fechaA.localeCompare(fechaB);
+      });
 
     if (aceptadas.length === 0) {
       contenedor.innerHTML = `
@@ -399,14 +454,22 @@ document.addEventListener('DOMContentLoaded', function() {
       const cliente = obtenerNombreCliente(sol);
       const servicio = obtenerNombreServicio(sol);
       const fecha = obtenerFecha(sol);
+      const horaInicio = obtenerHora(sol);
+      const duracion = sol.duracion_minutos_copia || 60;
+      const horaFin = calcularHoraFin(sol.hora_solicitada || horaInicio, duracion);
       const telefono = obtenerTelefonoCliente(sol);
+      
+      let direccionCruda = sol.direccion_atencion || 'Dirección no especificada';
+      const direccion = direccionCruda.replace(/\(Principal\)/gi, '').trim();
+      const barrio = sol.barrio_sector ? ` (${sol.barrio_sector})` : '';
 
       return `
-        <div style="background-color: #ffffff; border-radius: 1.25rem; border: 1px solid #e2e8f0; padding: 1.25rem 1.5rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
+        <div style="background-color: #ffffff; border-radius: 1.25rem; border: 1px solid #e2e8f0; padding: 1.25rem 1.5rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
           <div>
             <h4 style="font-size: 1.1rem; font-weight: 700; color: #0f172a; margin: 0 0 0.2rem 0;">${cliente}</h4>
             <p style="color: #64748b; font-size: 0.85rem; margin: 0 0 0.3rem 0;">${servicio}</p>
-            <p style="color: #94a3b8; font-size: 0.8rem; margin: 0;">📅 ${fecha} • 📞 ${telefono}</p>
+            <p style="color: #64748b; font-size: 0.8rem; margin: 0 0 0.2rem 0;">📅 ${fecha} (${horaInicio} - ${horaFin}) • 📞 ${telefono}</p>
+            <p style="color: #475569; font-size: 0.8rem; margin: 0;">📍 ${direccion}${barrio}</p>
           </div>
           <span style="background-color: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; font-weight: 700; font-size: 0.8rem; padding: 0.35rem 0.85rem; border-radius: 9999px;">
             ✓ Aceptada

@@ -27,14 +27,15 @@
     .availability-times { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
     .availability-times label, .period-form label { display: block; color: #475569; font-size: .8rem; font-weight: 600; margin-bottom: .3rem; }
     .availability-times select, .period-form input { width: 100%; padding: .6rem .65rem; border: 1px solid #cbd5e1; border-radius: .55rem; background: #fff; box-sizing: border-box; font-size: 0.85rem; color: #0f172a; outline: none; }
-    .availability-errors { color: #b91c1c; font-size: .82rem; margin: .35rem 0 0; }
+    .availability-errors { color: #b91c1c; font-size: .82rem; margin: .35rem 0 .65rem; font-weight: 600; }
     .availability-save, .period-form button, .period-delete button { background: #1a68ff; color: #fff; border: 0; border-radius: .65rem; padding: .7rem 1rem; font-weight: 700; cursor: pointer; }
     .availability-save { margin-top: 1rem; width: 100%; }
     .period-form > div { margin-bottom: .85rem; }
     .period-form small { display: block; color: #64748b; margin-top: .25rem; }
-    .availability-message { border-radius: .65rem; padding: .8rem 1rem; margin: 0 0 1rem; }
-    .availability-message.success { color: #166534; background: #dcfce7; }
-    .availability-message.error { color: #991b1b; background: #fee2e2; }
+    .availability-message { border-radius: .65rem; padding: .8rem 1rem; margin: 0 0 1rem; font-weight: 600; font-size: .9rem; }
+    .availability-message.success { color: #166534; background: #dcfce7; border: 1px solid #bbf7d0; }
+    .availability-message.error { color: #991b1b; background: #fee2e2; border: 1px solid #fecaca; }
+    .availability-message ul, .availability-errors ul { margin: 0; padding-left: 1.2rem; }
     .period-list { margin-top: 1.25rem; }
     .period-item { border-top: 1px solid #e2e8f0; padding: .85rem 0; display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
     .period-item p { margin: .1rem 0; color: #0f172a; }
@@ -68,9 +69,18 @@
                 <form method="post" action="{% url 'pagina-disponibilidad' %}">
                     {% csrf_token %}
                     <input type="hidden" name="accion" value="guardar_disponibilidad">
-                    {% if disponibilidad_form.dias.errors %}
-                        <div class="availability-errors">{{ disponibilidad_form.dias.errors }}</div>
+
+                    {% if disponibilidad_form.non_field_errors %}
+                        <div class="availability-message error" role="alert">{{ disponibilidad_form.non_field_errors }}</div>
                     {% endif %}
+                    {% if disponibilidad_form.dias.errors %}
+                        <div class="availability-message error" role="alert">{{ disponibilidad_form.dias.errors }}</div>
+                    {% endif %}
+                    {% for field in disponibilidad_form %}
+                        {% if field.errors and field.name != 'dias' %}
+                            <div class="availability-message error" role="alert">{{ field.label }}: {{ field.errors|striptags }}</div>
+                        {% endif %}
+                    {% endfor %}
 
                     <div class="availability-days">
                         {% for dia in dias %}
@@ -128,6 +138,11 @@
                     {% csrf_token %}
                     <input type="hidden" name="accion" value="{% if periodo_editando %}actualizar_periodo{% else %}crear_periodo{% endif %}">
                     {% if periodo_editando %}<input type="hidden" name="periodo_id" value="{{ periodo_editando.id }}">{% endif %}
+
+                    {% if periodo_form.non_field_errors %}
+                        <div class="availability-message error" role="alert">{{ periodo_form.non_field_errors }}</div>
+                    {% endif %}
+
                     <div>
                         <label for="{{ periodo_form.fecha_inicio.id_for_label }}">{{ periodo_form.fecha_inicio.label }}</label>
                         {{ periodo_form.fecha_inicio }}
@@ -182,7 +197,6 @@ document.addEventListener('DOMContentLoaded', function() {
     function validarFinDeSemana(input) {
         if (!input) return;
 
-        // Crear elemento de mensaje si no existe dinámicamente
         var msgError = input.nextElementSibling;
         if (!msgError || !msgError.classList.contains('availability-errors')) {
             msgError = document.createElement('div');
