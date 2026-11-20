@@ -1,8 +1,11 @@
-import datetime
+from django.contrib.auth import get_user_model
+from django.db import transaction
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 from .models import SolicitudReserva
 from catalogo.models import Servicio  # Ajusta la importación según la ubicación de tu modelo Servicio
-from usuarios.disponibilidad import validar_horario_reserva
+from usuarios.validators import validar_horario_reserva
+from .limites import validar_limites_cliente
 
 class SolicitudReservaSerializer(serializers.ModelSerializer):
     nombre_proveedor = serializers.SerializerMethodField()
@@ -19,7 +22,7 @@ class SolicitudReservaSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             'cliente', 'nombre_servicio_copia', 'precio_copia',
-            'duracion_minutos_copia', 'estado', 'motivo_rechazo_cancelacion',
+            'duracion_minutos_copia',
             'creado_en', 'actualizado_en'
         ]
 
@@ -57,39 +60,19 @@ class SolicitudReservaSerializer(serializers.ModelSerializer):
         return f"{u.first_name} {u.last_name}".strip() or u.email
 
     def validate(self, attrs):
-        fecha = attrs.get('fecha_solicitada')
-        hora = attrs.get('hora_solicitada')
-
-        # 1. Validación de Días (Lunes a Viernes)
-        if fecha:
-            if fecha.weekday() in [5, 6]:
-                raise serializers.ValidationError({
-                    "fecha_solicitada": "El servicio solo atiende de Lunes a Viernes."
-                })
-            
-            if fecha < datetime.date.today():
-                raise serializers.ValidationError({
-                    "fecha_solicitada": "No se pueden agendar solicitudes para fechas pasadas."
-                })
-
-        # 2. Validación de Horario (8:00 AM a 5:00 PM)
-        if hora:
-            hora_inicio = datetime.time(8, 0, 0)
-            hora_fin = datetime.time(17, 0, 0)
-
-            if not (hora_inicio <= hora <= hora_fin):
-                raise serializers.ValidationError({
-                    "hora_solicitada": "El horario de atención es únicamente de 8:00 AM a 5:00 PM."
-                })
-
-        return super().validate(attrs)
-
-    def validate(self, attrs):
         campos_horario = {'fecha_solicitada', 'hora_solicitada', 'servicio'}
         if self.instance is None or campos_horario.intersection(attrs):
             fecha = attrs.get('fecha_solicitada', getattr(self.instance, 'fecha_solicitada', None))
             hora = attrs.get('hora_solicitada', getattr(self.instance, 'hora_solicitada', None))
             servicio = attrs.get('servicio', getattr(self.instance, 'servicio', None))
+            if (
+                self.instance is None
+                and servicio
+                and str(servicio.estado).upper() != Servicio.Estado.ACTIVO
+            ):
+                raise serializers.ValidationError({
+                    'servicio': 'Este servicio está inactivo y no acepta nuevas solicitudes.'
+                })
             proveedor = (
                 servicio.proveedor if servicio
                 else getattr(self.instance, 'proveedor', None)
@@ -99,6 +82,13 @@ class SolicitudReservaSerializer(serializers.ModelSerializer):
             else:
                 duracion = servicio.duracion_minutos if servicio else 0
             validar_horario_reserva(proveedor, fecha, hora, duracion)
+
+            # Límites por cliente: sin cruces de horario y máximo 3 solicitudes por día (solo al crear)
+            if self.instance is None:
+                request = self.context.get('request')
+                cliente = getattr(request, 'user', None)
+                if cliente is not None and cliente.is_authenticated:
+                    validar_limites_cliente(cliente, fecha, hora, duracion)
 
         return super().validate(attrs)
 
@@ -119,4 +109,23 @@ class SolicitudReservaSerializer(serializers.ModelSerializer):
             validated_data['precio_copia'] = 0.00
             validated_data['duracion_minutos_copia'] = 60
 
-        return super().create(validated_data)
+        # Evita la condición de carrera: dos peticiones simultáneas del mismo cliente se
+        # serializan bloqueando la fila del usuario; la segunda re-valida con la primera ya guardada.
+        request = self.context.get('request')
+        cliente = getattr(request, 'user', None)
+        if cliente is None or not cliente.is_authenticated:
+            return super().create(validated_data)
+
+        with transaction.atomic():
+            get_user_model().objects.select_for_update().get(pk=cliente.pk)
+            try:
+                validar_limites_cliente(
+                    cliente,
+                    validated_data.get('fecha_solicitada'),
+                    validated_data.get('hora_solicitada'),
+                    validated_data['duracion_minutos_copia'],
+                )
+            except ValidationError as exc:
+                # Misma forma de respuesta que cuando el error sale de validate(): {campo: [mensaje]}
+                raise ValidationError(serializers.as_serializer_error(exc))
+            return super().create(validated_data)

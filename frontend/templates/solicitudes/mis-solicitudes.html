@@ -98,9 +98,11 @@ document.addEventListener('DOMContentLoaded', function() {
     var urlServicios = (window.BEC && window.BEC.cfg && window.BEC.cfg.api && window.BEC.cfg.api.servicios) ? window.BEC.cfg.api.servicios : '/api/catalogo/servicios/';
     var urlCategorias = '/api/catalogo/categorias/';
 
+    // CAMBIO 1: Usar window.BEC.api en el Promise.all
+    // Nota: Como BEC.api ya extrae el JSON, solo leemos r.data
     Promise.all([
-      fetch(urlCategorias).then(r => r.ok ? r.json() : []).catch(() => []),
-      fetch(urlServicios).then(r => r.ok ? r.json() : []).catch(() => [])
+      window.BEC.api(urlCategorias).then(r => (r && r.ok) ? r.data : []).catch(() => []),
+      window.BEC.api(urlServicios).then(r => (r && r.ok) ? r.data : []).catch(() => [])
     ]).then(function(respuestas) {
       // 1. Mapear Categorías
       var listaCats = Array.isArray(respuestas[0]) ? respuestas[0] : (respuestas[0].results || []);
@@ -233,6 +235,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const estado = (sol.estado || 'PENDIENTE').toUpperCase();
 
       const esRealizado = estado === 'REALIZADO' || estado === 'COMPLETADO' || estado === 'FINALIZADO';
+      const urlDetalle = '/mis-solicitudes/' + sol.id + '/';
 
       return `
         <div style="background-color: #ffffff; border-radius: 1.25rem; border: 1px solid #e2e8f0; padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
@@ -243,10 +246,9 @@ document.addEventListener('DOMContentLoaded', function() {
               </svg>
             </div>
             <div>
-              <!-- NOMBRE DEL SERVICIO (Manicure, Masaje, etc.) -->
-              <h3 style="font-size: 1.25rem; font-weight: 700; color: #0f172a; margin: 0 0 0.35rem 0;">${servicioNombre}</h3>
-              
-              <!-- NOMBRE DE LA CATEGORÍA (Peluquería, Masajes no Médicos, etc.) DEBAJO DEL TÍTULO -->
+              <h3 style="font-size: 1.25rem; font-weight: 700; color: #0f172a; margin: 0 0 0.35rem 0;">
+                <a href="${urlDetalle}" style="color: #0f172a; text-decoration: none;" onmouseover="this.style.color='#2563eb'" onmouseout="this.style.color='#0f172a'">${servicioNombre}</a>
+              </h3>
               <p style="color: #64748b; font-size: 0.9rem; margin: 0 0 0.85rem 0;">${categoria}</p>
               
               <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; font-size: 0.85rem; color: #64748b;">
@@ -263,14 +265,12 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
 
           <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; justify-content: flex-end;">
-            ${esRealizado ? `
-              <span style="background-color: #dcfce7; color: #166534; font-size: 0.8rem; font-weight: 700; padding: 0.35rem 0.85rem; border-radius: 9999px;">Realizado</span>
-            ` : `
-              <span style="background-color: #fef9c3; color: #854d0e; font-size: 0.8rem; font-weight: 700; padding: 0.35rem 0.85rem; border-radius: 9999px;">${estado}</span>
-              <button disabled style="background-color: #64748b; color: #ffffff; font-weight: 600; padding: 0.6rem 1.25rem; border-radius: 0.75rem; border: none; font-size: 0.875rem; cursor: not-allowed;">
-                En proceso...
-              </button>
-            `}
+            <span style="background-color: ${esRealizado ? '#dcfce7' : '#fef9c3'}; color: ${esRealizado ? '#166534' : '#854d0e'}; font-size: 0.8rem; font-weight: 700; padding: 0.35rem 0.85rem; border-radius: 9999px;">
+              ${esRealizado ? 'Realizado' : estado}
+            </span>
+            <a href="${urlDetalle}" style="display: inline-flex; justify-content: center; align-items: center; min-width: 100px; height: 40px; padding: 0 1.25rem; border-radius: 12px; font-size: 0.9rem; font-weight: 700; text-decoration: none; transition: all 0.2s ease; border: none; cursor: pointer; background-color: #2563eb; color: #ffffff;">
+              Ver detalle
+            </a>
           </div>
         </div>
       `;
@@ -280,11 +280,16 @@ document.addEventListener('DOMContentLoaded', function() {
   function cargarSolicitudesReales() {
     var urlApi = (window.BEC && window.BEC.cfg && window.BEC.cfg.api && window.BEC.cfg.api.solicitudes) ? window.BEC.cfg.api.solicitudes : '/api/solicitudes/';
     
-    fetch(urlApi)
-      .then(function(res) { return res.json(); })
-      .then(function(data) {
-        todasLasSolicitudes = window.BEC && window.BEC.lista ? window.BEC.lista(data) : (Array.isArray(data) ? data : (data.results || []));
-        renderizarSolicitudes(todasLasSolicitudes);
+    // CAMBIO 2: Usar window.BEC.api en lugar de fetch()
+    window.BEC.api(urlApi)
+      .then(function(res) {
+        if (res && res.ok) {
+          var data = res.data; // BEC.api ya entrega el JSON parseado en .data
+          todasLasSolicitudes = window.BEC && window.BEC.lista ? window.BEC.lista(data) : (Array.isArray(data) ? data : (data.results || []));
+          renderizarSolicitudes(todasLasSolicitudes);
+        } else {
+          renderizarSolicitudes([]);
+        }
       })
       .catch(function() {
         renderizarSolicitudes([]);

@@ -77,6 +77,11 @@
           justify-content: space-between;
           align-items: center;
         }
+        .fieldset-oculto {
+          border: none;
+          margin: 0;
+          padding: 0;
+        }
       </style>
 
       <!-- Columna Izquierda: Formulario -->
@@ -104,7 +109,9 @@
                 <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #334155; margin-bottom: 0.5rem;">
                   Correo electrónico <span style="color: #ef4444;">*</span>
                 </label>
-                <input type="email" id="email_cliente" class="form-input-field" placeholder="correo@ejemplo.com" required>
+                <fieldset class="fieldset-oculto" disabled>
+                  <input type="email" id="email_cliente" class="form-input-field" placeholder="correo@ejemplo.com" required>
+                </fieldset>
               </div>
             </div>
 
@@ -122,21 +129,40 @@
               Detalles del servicio
             </h2>
 
-            <!-- TARJETA INFORMATIVA DEL SERVICIO SELECCIONADO (Sin select) -->
-            <!-- SERVICIO SELECCIONADO (Diseño Sobrio y Adaptado) -->
-<div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.75rem; padding: 0.75rem 1rem; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center;">
-  <div>
-    <span style="font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.025em; display: block;">
-      Servicio seleccionado
-    </span>
-    <span id="nombre_servicio_preview" style="font-size: 0.95rem; font-weight: 600; color: #0f172a;">
-      Cargando servicio...
-    </span>
-  </div>
-  <div id="precio_servicio_preview" style="font-size: 0.95rem; font-weight: 700; color: #0f172a;">
-    --
-  </div>
-</div>
+            <!-- TARJETA INFORMATIVA DEL SERVICIO SELECCIONADO -->
+            <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.75rem; padding: 0.75rem 1rem; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <span style="font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.025em; display: block;">
+                  Servicio seleccionado
+                </span>
+                <span id="nombre_servicio_preview" style="font-size: 0.95rem; font-weight: 600; color: #0f172a;">
+                  Cargando servicio...
+                </span>
+              </div>
+              <div style="text-align: right;">
+                <div id="precio_servicio_preview" style="font-size: 0.95rem; font-weight: 700; color: #0f172a;">--</div>
+                <div id="duracion_servicio_preview" style="font-size: 0.75rem; color: #64748b;">Duración: -- min</div>
+              </div>
+            </div>
+
+            <!-- HU-12 (E2 & E9): CAMPOS SEPARADOS DE DIRECCIÓN Y BARRIO/SECTOR -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 1.25rem;">
+              <div>
+                <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #334155; margin-bottom: 0.5rem;">
+                  Dirección de atención <span style="color: #ef4444;">*</span>
+                </label>
+                <input type="text" id="direccion_atencion" class="form-input-field" placeholder="Ej: Calle 5 # 4-20" required>
+                <span id="error_direccion" class="alert-field-error"></span>
+              </div>
+
+              <div>
+                <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #334155; margin-bottom: 0.5rem;">
+                  Barrio o Sector <span style="color: #ef4444;">*</span>
+                </label>
+                <input type="text" id="barrio_sector" class="form-input-field" placeholder="Ej: San Antonio" required>
+                <span id="error_barrio" class="alert-field-error"></span>
+              </div>
+            </div>
 
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 1.25rem;">
               <div>
@@ -163,18 +189,20 @@
                   <option value="15:00:00">03:00 PM</option>
                   <option value="16:00:00">04:00 PM</option>
                 </select>
+                <!-- HU-12 (E10): Cálculo dinámico de hora de finalización -->
+                <div id="calculo_hora_fin" style="font-size: 0.8rem; color: #2563eb; font-weight: 600; margin-top: 0.4rem; display: none;"></div>
               </div>
             </div>
 
             <div style="margin-bottom: 1.75rem;">
               <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #334155; margin-bottom: 0.5rem;">
-                Notas adicionales / Dirección
+                Información complementaria / Observaciones (Opcional)
               </label>
-              <textarea id="notas_adicionales" rows="4" class="form-input-field" placeholder="Indica detalles del servicio, dirección completa, requerimientos especiales..." style="resize: vertical;"></textarea>
+              <textarea id="observaciones" rows="3" class="form-input-field" placeholder="Instrucciones especiales para llegar, timbre, etc..." style="resize: vertical;"></textarea>
             </div>
 
             <!-- Botón Enviar Solicitud -->
-            <button type="submit" id="btnEnviarSolicitud" style="width: 100%; background-color: #0b1120; color: #ffffff; font-weight: 700; padding: 1rem; border-radius: 0.85rem; border: none; font-size: 1rem; cursor: pointer; transition: background-color 0.2s ease;">
+            <button type="submit" id="btnEnviarSolicitud" style="width: 100%; background-color: #2563eb; color: #ffffff; font-weight: 700; padding: 1rem; border-radius: 0.85rem; border: none; font-size: 1rem; cursor: pointer; transition: background-color 0.2s ease;">
               Enviar solicitud
             </button>
 
@@ -243,24 +271,6 @@
           </ul>
         </div>
 
-        <!-- Tarjeta 3: Necesitas ayuda -->
-        <div style="background-color: #ffffff; border-radius: 1.25rem; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-          <div style="height: 10rem; width: 100%; overflow: hidden;">
-            <img src="https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&q=80&w=600" alt="Atención médica" style="width: 100%; height: 100%; object-fit: cover;">
-          </div>
-          <div style="padding: 1.25rem;">
-            <h3 style="font-size: 1.125rem; font-weight: 700; color: #0f172a; margin: 0 0 0.35rem 0;">
-              ¿Necesitas ayuda?
-            </h3>
-            <p style="color: #64748b; font-size: 0.875rem; margin: 0 0 1rem 0;">
-              Nuestro equipo está disponible para asistirte.
-            </p>
-            <a href="mailto:BienestarEnCasa@gmail.com" style="display: block; text-align: center; border: 1px solid #e2e8f0; background-color: #ffffff; color: #0f172a; font-weight: 600; padding: 0.65rem; border-radius: 0.75rem; text-decoration: none; font-size: 0.9rem;">
-              Contactar soporte
-            </a>
-          </div>
-        </div>
-
       </div>
 
     </div>
@@ -269,20 +279,23 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  var btnLogout = document.getElementById('btn-cerrar-sesion');
   var form = document.getElementById('formSolicitarServicio');
   var inputFecha = document.getElementById('fecha_preferida');
+  var selectHorario = document.getElementById('horario_disponible');
   var errorFecha = document.getElementById('error_fecha');
+  var errorDireccion = document.getElementById('error_direccion');
+  var errorBarrio = document.getElementById('error_barrio');
+  
   var namePreview = document.getElementById('nombre_servicio_preview');
   var pricePreview = document.getElementById('precio_servicio_preview');
+  var durationPreview = document.getElementById('duracion_servicio_preview');
+  var calculoHoraFinDiv = document.getElementById('calculo_hora_fin');
 
   var servicioActual = null;
 
-  // 1. Obtener ID del servicio directamente desde la URL (/solicitar/4/)
   var pathSegments = window.location.pathname.split('/').filter(Boolean);
   var servicioIdUrl = pathSegments[pathSegments.length - 1];
 
-  // Formatear precio
   function formatearDinero(monto) {
     if (window.BEC && window.BEC.dinero) {
       return window.BEC.dinero(monto);
@@ -290,7 +303,37 @@ document.addEventListener('DOMContentLoaded', function() {
     return '$' + Number(monto || 0).toLocaleString('es-CO');
   }
 
-  // 2. Cargar la información del servicio directamente
+  // HU-12 (E10): Calcular y mostrar la hora de finalización estimada
+  function actualizarCalculoHoraFin() {
+    var horaInicioVal = selectHorario.value;
+    var duracionMinutos = servicioActual && servicioActual.duracion_minutos ? Number(servicioActual.duracion_minutos) : 60;
+    
+    if (!horaInicioVal) {
+      calculoHoraFinDiv.style.display = 'none';
+      return;
+    }
+
+    var partes = horaInicioVal.split(':').map(Number);
+    var totalMinutosInicio = partes[0] * 60 + partes[1];
+    var totalMinutosFin = totalMinutosInicio + duracionMinutos;
+
+    var horaFinH = Math.floor(totalMinutosFin / 60) % 24;
+    var horaFinM = totalMinutosFin % 60;
+    var hhFin = String(horaFinH).padStart(2, '0');
+    var mmFin = String(horaFinM).padStart(2, '0');
+
+    var apFin = horaFinH >= 12 ? 'PM' : 'AM';
+    var h12Fin = horaFinH % 12 || 12;
+    var horaFin12Str = String(h12Fin).padStart(2, '0') + ':' + mmFin + ' ' + apFin;
+
+    calculoHoraFinDiv.textContent = '⏱️ Hora estimada de finalización: ' + horaFin12Str + ' (' + duracionMinutos + ' min)';
+    calculoHoraFinDiv.style.display = 'block';
+  }
+
+  if (selectHorario) {
+    selectHorario.addEventListener('change', actualizarCalculoHoraFin);
+  }
+
   function cargarDetalleServicio() {
     if (!servicioIdUrl || isNaN(servicioIdUrl)) {
       if (namePreview) namePreview.textContent = 'Servicio no especificado';
@@ -306,10 +349,11 @@ document.addEventListener('DOMContentLoaded', function() {
           servicioActual = s;
           if (namePreview) namePreview.textContent = s.nombre || s.titulo || 'Servicio de Bienestar';
           if (pricePreview) pricePreview.textContent = formatearDinero(s.precio);
+          if (durationPreview) durationPreview.textContent = 'Duración: ' + (s.duracion_minutos || 60) + ' min';
           var prov = s.proveedor_id || (s.proveedor && (s.proveedor.id || s.proveedor));
           if (prov) cargarDisponibilidadProveedor(prov);
+          actualizarCalculoHoraFin();
         } else {
-          // Si la ruta directa no funciona, buscar en el catálogo general
           cargarDesdeCatalogoGeneral();
         }
       })
@@ -324,13 +368,15 @@ document.addEventListener('DOMContentLoaded', function() {
       .then(function(r) { return r.json(); })
       .then(function(data) {
         var lista = window.BEC && window.BEC.lista ? window.BEC.lista(data) : (Array.isArray(data) ? data : (data.results || []));
-        var encontrado = lista.find(item => String(item.id) === String(servicioIdUrl));
+        var encontrado = lista.find(function(item) { return String(item.id) === String(servicioIdUrl); });
         if (encontrado) {
           servicioActual = encontrado;
           if (namePreview) namePreview.textContent = encontrado.nombre || 'Servicio de Bienestar';
           if (pricePreview) pricePreview.textContent = formatearDinero(encontrado.precio);
+          if (durationPreview) durationPreview.textContent = 'Duración: ' + (encontrado.duracion_minutos || 60) + ' min';
           var prov2 = encontrado.proveedor_id || (encontrado.proveedor && (encontrado.proveedor.id || encontrado.proveedor));
           if (prov2) cargarDisponibilidadProveedor(prov2);
+          actualizarCalculoHoraFin();
         } else {
           if (namePreview) namePreview.textContent = 'Servicio #' + servicioIdUrl;
         }
@@ -339,7 +385,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
   cargarDetalleServicio();
 
-  // Configurar fecha mínima como HOY
   if (inputFecha) {
     var hoy = new Date();
     var yyyy = hoy.getFullYear();
@@ -354,6 +399,36 @@ document.addEventListener('DOMContentLoaded', function() {
 
   var disponibilidadProveedor = null;
   var NOMBRES = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+  var opcionesHorarioBase = Array.prototype.map.call(
+    selectHorario.options,
+    function(opcion) { return opcion.cloneNode(true); }
+  );
+
+  function restaurarHorariosBase() {
+    selectHorario.replaceChildren.apply(selectHorario, opcionesHorarioBase.map(function(opcion) { return opcion.cloneNode(true); }));
+  }
+
+  function quitarHorariosPasados(fechaSeleccionada) {
+    var ahora = new Date();
+    var fechaHoy = ahora.getFullYear() + '-' + String(ahora.getMonth() + 1).padStart(2, '0') + '-' + String(ahora.getDate()).padStart(2, '0');
+    if (fechaSeleccionada !== fechaHoy) return;
+
+    var minutosActuales = ahora.getHours() * 60 + ahora.getMinutes();
+    Array.prototype.slice.call(selectHorario.options).forEach(function(opcion) {
+      if (!opcion.value) return;
+      var partes = opcion.value.split(':').map(Number);
+      if (partes[0] * 60 + partes[1] <= minutosActuales) opcion.remove();
+    });
+
+    var quedanHorarios = Array.prototype.some.call(selectHorario.options, function(opcion) { return Boolean(opcion.value); });
+    if (!quedanHorarios) {
+      selectHorario.innerHTML = '<option value="" disabled selected>No quedan horarios disponibles para hoy</option>';
+      if (errorFecha) {
+        errorFecha.textContent = 'Ya no hay horarios disponibles para hoy. Selecciona otra fecha.';
+        errorFecha.style.display = 'block';
+      }
+    }
+  }
 
   function fmt12(hhmm) {
     var p = hhmm.split(':');
@@ -369,10 +444,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var contHoras = document.getElementById('lista_horarios');
     var titulo = document.getElementById('titulo_horarios');
     var rapido = document.getElementById('texto_horario_rapido');
-    if (!disponibilidadProveedor || !disponibilidadProveedor.configurado) {
-      if (rapido) rapido.textContent = 'Este proveedor aún no configuró su disponibilidad. Se muestra el horario general de Lunes a Viernes, 8:00 AM a 5:00 PM.';
-      return;
-    }
+    if (!disponibilidadProveedor || !disponibilidadProveedor.configurado) return;
     if (contDias) {
       contDias.innerHTML = disponibilidadProveedor.dias.map(function(d) {
         return '<span class="day-pill">' + NOMBRES[d.dia_semana] + ' ' + d.hora_inicio + '–' + d.hora_fin + '</span>';
@@ -384,19 +456,22 @@ document.addEventListener('DOMContentLoaded', function() {
         return '<span class="time-pill">' + NOMBRES[d.dia_semana] + ': ' + fmt12(d.hora_inicio) + ' – ' + fmt12(d.hora_fin) + '</span>';
       }).join('');
     }
-    if (rapido) rapido.textContent = 'Solo puedes solicitar dentro del horario que el proveedor configuró. Los periodos bloqueados no se pueden reservar.';
+    if (rapido) rapido.textContent = 'Solo puedes solicitar dentro del horario que el proveedor configuró.';
   }
 
   function aplicarDisponibilidadCliente(valorFecha) {
-    var select = document.getElementById('horario_disponible');
-    if (!valorFecha || !select) return;
+    if (!valorFecha || !selectHorario) return;
     if (!disponibilidadProveedor || !disponibilidadProveedor.configurado) {
+      restaurarHorariosBase();
       var fechaSel = new Date(valorFecha + 'T00:00:00');
       var jsDay = fechaSel.getDay();
       if (jsDay === 0 || jsDay === 6) {
         if (errorFecha) { errorFecha.textContent = 'Atención únicamente de Lunes a Viernes.'; errorFecha.style.display = 'block'; }
         inputFecha.value = '';
-      } else if (errorFecha) { errorFecha.textContent = ''; errorFecha.style.display = 'none'; }
+      } else {
+        if (errorFecha) { errorFecha.textContent = ''; errorFecha.style.display = 'none'; }
+        quitarHorariosPasados(valorFecha);
+      }
       return;
     }
     var fecha = new Date(valorFecha + 'T00:00:00');
@@ -406,14 +481,14 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     if (bloqueado) {
       if (errorFecha) { errorFecha.textContent = 'El proveedor no está disponible en la fecha seleccionada.'; errorFecha.style.display = 'block'; }
-      select.innerHTML = '<option value="" disabled selected>Fecha no disponible</option>';
+      selectHorario.innerHTML = '<option value="" disabled selected>Fecha no disponible</option>';
       inputFecha.value = '';
       return;
     }
     var franja = disponibilidadProveedor.dias.find(function(d) { return Number(d.dia_semana) === diaPy; });
     if (!franja) {
       if (errorFecha) { errorFecha.textContent = 'El proveedor no atiende el día seleccionado.'; errorFecha.style.display = 'block'; }
-      select.innerHTML = '<option value="" disabled selected>Día sin atención</option>';
+      selectHorario.innerHTML = '<option value="" disabled selected>Día sin atención</option>';
       inputFecha.value = '';
       return;
     }
@@ -429,7 +504,8 @@ document.addEventListener('DOMContentLoaded', function() {
       html += '<option value="' + hh + ':' + mm + ':00">' + fmt12(hh + ':' + mm) + '</option>';
       cursor += 60;
     }
-    select.innerHTML = html;
+    selectHorario.innerHTML = html;
+    quitarHorariosPasados(valorFecha);
   }
 
   function cargarDisponibilidadProveedor(proveedorId) {
@@ -444,14 +520,6 @@ document.addEventListener('DOMContentLoaded', function() {
       });
   }
 
-  // Cierre de sesión
-  if (btnLogout && window.BEC && window.BEC.cerrarSesion) {
-    btnLogout.addEventListener('click', function() {
-      window.BEC.cerrarSesion();
-    });
-  }
-
-  // Precargar datos del perfil
   if (window.BEC && window.BEC.api) {
     window.BEC.api('/api/usuarios/perfil/').then(function(res) {
       if (res && res.ok && res.data) {
@@ -473,34 +541,55 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Envío del Formulario
   if (form) {
     form.addEventListener('submit', function(e) {
       e.preventDefault();
 
-      if (!inputFecha.value) {
-        if (errorFecha) {
-          errorFecha.textContent = 'Selecciona una fecha válida.';
-          errorFecha.style.display = 'block';
-        }
-        return;
+      // Limpiar errores visuales previos
+      if (errorFecha) { errorFecha.textContent = ''; errorFecha.style.display = 'none'; }
+      if (errorDireccion) { errorDireccion.textContent = ''; errorDireccion.style.display = 'none'; }
+      if (errorBarrio) { errorBarrio.textContent = ''; errorBarrio.style.display = 'none'; }
+
+      var direccionVal = document.getElementById('direccion_atencion').value.trim();
+      var barrioVal = document.getElementById('barrio_sector').value.trim();
+      var hayError = false;
+
+      // E7: Validar obligatoriedad de dirección y barrio de forma visual por campo
+      if (!direccionVal) {
+        if (errorDireccion) { errorDireccion.textContent = 'La dirección de atención es obligatoria.'; errorDireccion.style.display = 'block'; }
+        hayError = true;
       }
+      if (!barrioVal) {
+        if (errorBarrio) { errorBarrio.textContent = 'El barrio o sector es obligatorio.'; errorBarrio.style.display = 'block'; }
+        hayError = true;
+      }
+      if (!inputFecha.value) {
+        if (errorFecha) { errorFecha.textContent = 'Selecciona una fecha válida.'; errorFecha.style.display = 'block'; }
+        hayError = true;
+      }
+      if (!selectHorario.value) {
+        if (errorFecha) { errorFecha.textContent = 'Selecciona un horario disponible.'; errorFecha.style.display = 'block'; }
+        hayError = true;
+      }
+
+      if (hayError) return;
 
       var csrfToken = '';
       var csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
       if (csrfInput) csrfToken = csrfInput.value;
 
-      var notasTexto = document.getElementById('notas_adicionales').value.trim();
       var proveedorId = servicioActual ? (servicioActual.proveedor_id || (servicioActual.proveedor ? (servicioActual.proveedor.id || servicioActual.proveedor) : 1)) : 1;
+      var observacionesVal = document.getElementById('observaciones').value.trim();
 
+      // HU-12 (E2 & E9): Enviar campos de dirección y barrio independientes
       var payload = {
         servicio: parseInt(servicioIdUrl),
         proveedor: parseInt(proveedorId),
         fecha_solicitada: inputFecha.value,
-        hora_solicitada: document.getElementById('horario_disponible').value,
-        direccion_atencion: notasTexto || "Dirección del perfil",
-        barrio_sector: "Principal",
-        notas_adicionales: notasTexto
+        hora_solicitada: selectHorario.value,
+        direccion_atencion: direccionVal,
+        barrio_sector: barrioVal,
+        observaciones: observacionesVal
       };
 
       var btnSubmit = document.getElementById('btnEnviarSolicitud');

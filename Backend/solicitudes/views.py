@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
+from rest_framework.exceptions import PermissionDenied
 from django.db.models import Q
 
 from .models import SolicitudReserva
@@ -39,6 +40,14 @@ class ClienteSolicitudesViewSet(viewsets.ModelViewSet):
         return SolicitudReserva.objects.filter(cliente=usuario).order_by('-creado_en')
 
     def perform_create(self, serializer):
+        usuario = self.request.user
+        perfil = getattr(usuario, 'perfil', None)
+        rol = str(getattr(perfil, 'rol', '')).upper()
+
+        # E1: Validar estrictamente que un proveedor no pueda crear solicitudes
+        if rol in ['PROVEEDOR', 'PRO'] and not usuario.is_staff:
+            raise PermissionDenied("Los usuarios con rol de Proveedor no tienen permitida la creación de solicitudes.")
+
         servicio = serializer.validated_data.get('servicio')
         proveedor_obj = None
 
@@ -49,9 +58,19 @@ class ClienteSolicitudesViewSet(viewsets.ModelViewSet):
 
         # 2. Asignar el User autenticado como cliente y el proveedor identificado
         serializer.save(
-            cliente=self.request.user,
+            cliente=usuario,
             proveedor=proveedor_obj
         )
+
+    def perform_update(self, serializer):
+        """
+        Permite procesar y guardar los cambios de estado (como Aceptar o Rechazar) 
+        enviados mediante PATCH desde el panel del proveedor para reflejarse en la agenda.
+        """
+        instance = serializer.save()
+        if instance.estado == 'ACEPTADA':
+            # La reserva queda persistida correctamente para la agenda
+            pass
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
