@@ -154,7 +154,8 @@
                     <p><strong>Estado:</strong> <span id="d-estado"></span></p>
                     <div class="fila">
                         <p><strong>Fecha:</strong> <span id="d-fecha"></span></p>
-                        <p><strong>Hora:</strong> <span id="d-hora"></span></p>
+                        <p><strong>Hora incio:</strong> <span id="d-hora"></span></p>
+                        <p><strong>Hora fin:</strong> <span id="d-hora"></span> - <span id="d-hora-fin"></span></p>
                     </div>
                 </div>
 
@@ -218,6 +219,21 @@
         if (valor) { texto(idSpan, valor); document.getElementById(idP).hidden = false; }
     }
 
+        function sumarMinutos(horaStr, minutos) {
+        if (!horaStr || !minutos) return '';
+        var partes = horaStr.split(':');
+        var h = parseInt(partes[0], 10);
+        var m = parseInt(partes[1], 10);
+
+        var totalMin = h * 60 + m + parseInt(minutos, 10);
+        totalMin = totalMin % (24 * 60); // por si pasa de medianoche
+
+        var hFin = Math.floor(totalMin / 60);
+        var mFin = totalMin % 60;
+
+        return String(hFin).padStart(2, '0') + ':' + String(mFin).padStart(2, '0');
+    }
+
     BEC.requiereSesion(['CLIENTE']).then(function (p) {
         if (!p) { return; }
         BEC.api(BEC.url(BEC.cfg.api.solicitud, ID)).then(function (res) {
@@ -246,6 +262,7 @@
 
             texto('d-fecha', BEC.fecha(s.fecha_solicitada));
             texto('d-hora', BEC.hora(s.hora_solicitada));
+            texto('d-hora-fin', sumarMinutos(s.hora_solicitada, s.duracion_minutos_copia));
             texto('d-direccion', s.direccion_atencion);
             texto('d-barrio', s.barrio_sector);
             opcional('p-complementaria', 'd-complementaria', s.informacion_complementaria);
