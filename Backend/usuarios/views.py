@@ -469,6 +469,11 @@ class GestionarDisponibilidadPageView(APIView):
     permission_classes = (IsAuthenticated, EsProveedorRegistrado)
     template_name = 'users/disponibilidad-proveedor.html'
 
+    def handle_exception(self, exc):
+        if isinstance(exc, (NotAuthenticated, AuthenticationFailed, PermissionDenied)):
+            return redirect('pagina-inicio')
+        return super().handle_exception(exc)
+
     def obtener_horarios(self, user):
         return DisponibilidadProveedor.objects.filter(proveedor__perfil_usuario=user.perfil)
 
